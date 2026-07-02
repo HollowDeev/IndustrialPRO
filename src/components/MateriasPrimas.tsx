@@ -21,6 +21,7 @@ import {
 
 interface MateriasPrimasProps {
   suppliers: Supplier[];
+  triggerAddNew?: number;
 }
 
 const INITIAL_MATERIALS: RawMaterial[] = [
@@ -68,7 +69,13 @@ const INITIAL_MATERIALS: RawMaterial[] = [
   }
 ];
 
-export default function MateriasPrimas({ suppliers }: MateriasPrimasProps) {
+export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPrimasProps) {
+  useEffect(() => {
+    if (triggerAddNew !== undefined && triggerAddNew > 0) {
+      handleStartAddNew();
+    }
+  }, [triggerAddNew]);
+
   const [materials, setMaterials] = useState<RawMaterial[]>(() => {
     const saved = localStorage.getItem('helpe_raw_materials');
     return saved ? JSON.parse(saved) : INITIAL_MATERIALS;

@@ -1,90 +1,372 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Supplier, Order, DailyProductionSetup } from '../types';
-import { INITIAL_ORDERS, INITIAL_SUPPLIERS } from '../data';
 import SideNavBar from '../components/SideNavBar';
 import TopAppBar from '../components/TopAppBar';
 import DashboardScreen from '../components/DashboardScreen';
 import AberturaProducao from '../components/AberturaProducao';
-import ApontamentoReal from '../components/ApontamentoReal';
+import ApontamentoScreen from '../components/ApontamentoScreen';
 import ReprogramacaoTecnica from '../components/ReprogramacaoTecnica';
 import Fornecedores from '../components/Fornecedores';
 import PedidosDetail from '../components/PedidosDetail';
 import Funcionarios from '../components/Funcionarios';
 import MateriasPrimas from '../components/MateriasPrimas';
+import FamiliasSkusScreen from '../components/FamiliasSkusScreen';
+import BOMScreen from '../components/BOMScreen';
+import ConfiguracoesScreen from '../components/ConfiguracoesScreen';
+import { createClient } from '../utils/supabase/client';
 
 export default function Home() {
-  // Screens: 'dashboard' | 'pedidos' | 'pedido-detail' | 'apontamento' | 'reprogramacao' | 'fornecedores'
+  const supabase = createClient();
+  
+  // Screens: 'dashboard' | 'pedidos' | 'pedido-detail' | 'apontamento' | 'reprogramacao' | 'fornecedores' | 'familias-skus' | 'bom-formulas'
   const [currentScreen, setCurrentScreen] = useState<string>('dashboard');
   
   // App States
-  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
-  const [suppliers, setSuppliers] = useState<Supplier[]>(INITIAL_SUPPLIERS);
-  const [selectedOrderId, setSelectedOrderId] = useState<string>('PED-2024-015');
-  const [currentSetup, setCurrentSetup] = useState<DailyProductionSetup | null>({
-    date: '12/11/2023',
-    orderId: 'PED-2024-015',
-    clientName: 'Alcopla Plásticos Ltda',
-    team: ['Fabrício Rodrigues', 'Ronaldo Sales', 'Marcio Souza'],
-    deadline: '2023-11-25',
-    hoursAvailable: 12,
-    checklists: {
-      limpeza: true,
-      residualAnterior: true,
-      temperaturas: true,
-      rotacaoRosca: true,
-      alimentacaoMaquina: true,
-      bagPosicionado: true,
-      operadorOk: true
-    }
-  });
-
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [selectedOrderId, setSelectedOrderId] = useState<string>('');
+  const [currentSetup, setCurrentSetup] = useState<DailyProductionSetup | null>(null);
   const [isAddingNewSupplier, setIsAddingNewSupplier] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [globalSearch, setGlobalSearch] = useState('');
+  const [lowStockCount, setLowStockCount] = useState(0);
+  const [userProfile, setUserProfile] = useState<{ nome: string; cargo: string } | null>(null);
+  const [triggerAddEmployee, setTriggerAddEmployee] = useState(0);
+  const [triggerAddMaterial, setTriggerAddMaterial] = useState(0);
+  const [triggerAddFamily, setTriggerAddFamily] = useState(0);
 
-  // Handlers for Order / OP Updates
-  const handleUpdateOrder = (updatedOrder: Order) => {
-    setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+  // Carregar dados principais do banco de dados (Supabase)
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+
+      // A) Carregar Pedidos
+      const { data: dbPedidos } = await supabase
+        .from('pedidos')
+        .select('*, ordens_producao(*, skus(*, familias_produto(*)))')
+        .order('created_at', { ascending: false });
+
+      const mappedOrders: Order[] = (dbPedidos || []).map((ped: any) => {
+        const items = (ped.ordens_producao || []).map((op: any, index: number) => ({
+          itemNum: (index + 1).toString().padStart(2, '0'),
+          product: op.skus?.familias_produto?.nome || 'Desconhecido',
+          measure: op.skus?.codigo || `${op.skus?.comprimento_mm}mm`,
+          totalQtd: op.quantidade_planejada,
+          produced: op.quantidade_produzida || 0,
+          tempoPeca: 1.2,
+          extruder: 'EXT-04',
+          eta: op.status === 'ABERTA' ? 'Aguardando' : op.status === 'FINALIZADA' ? 'Finalizado' : 'Em Andamento',
+          status: op.status === 'ABERTA' ? 'Aberto' : op.status === 'FINALIZADA' ? 'Finalizado' : 'Em Andamento'
+        }));
+
+        const totalVolume = items.reduce((sum, i) => sum + i.totalQtd, 0);
+        const totalProduced = items.reduce((sum, i) => sum + i.produced, 0);
+
+        return {
+          id: ped.codigo,
+          clientName: ped.nome_cliente,
+          location: ped.localizacao || 'Planta Principal',
+          emissionDate: new Date(ped.data_emissao).toLocaleDateString('pt-BR'),
+          deliveryDate: ped.data_entrega ? new Date(ped.data_entrega).toISOString().split('T')[0] : '',
+          priority: ped.prioridade === 'ALTA' ? 'Alta' : ped.prioridade === 'BAIXA' ? 'Baixa' : 'Média',
+          totalProduced,
+          totalVolume,
+          efficiency: 89.4,
+          timeEstimated: 12,
+          items
+        };
+      });
+
+      setOrders(mappedOrders);
+      if (mappedOrders.length > 0 && !selectedOrderId) {
+        setSelectedOrderId(mappedOrders[0].id);
+      }
+
+      // B) Carregar Fornecedores
+      const { data: dbSuppliers } = await supabase
+        .from('fornecedores')
+        .select('*')
+        .order('nome');
+
+      const mappedSuppliers: Supplier[] = (dbSuppliers || []).map((sup: any) => ({
+        id: sup.id,
+        name: sup.nome,
+        cnpj: sup.cnpj || '',
+        IE: sup.ie || 'Isento',
+        categories: [sup.categoria || 'Matéria-Prima'],
+        rating: sup.rating || 90,
+        status: sup.status || 'Em Homologação',
+        contact: sup.contato_nome || '',
+        contactEmail: sup.contato_email || sup.email || '',
+        lastDelivery: sup.last_delivery || 'Recém Cadastrado',
+        address: sup.endereco || '',
+        limit: Number(sup.limite_financeiro) || 250000,
+        logo: sup.logo,
+        auditDate: sup.audit_date || new Date(sup.created_at).toLocaleDateString('pt-BR'),
+        paymentTerm: sup.payment_term || '30 Dias',
+        currency: sup.currency || 'BRL',
+        documents: sup.documents || [],
+        history: sup.history || []
+      }));
+
+      setSuppliers(mappedSuppliers);
+
+      // C) Carregar Turno Ativo Mais Recente
+      const { data: activeTurno } = await supabase
+        .from('turnos')
+        .select('*, turnos_operadores(funcionarios(nome))')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (activeTurno) {
+        const team = (activeTurno.turnos_operadores || [])
+          .map((to: any) => to.funcionarios?.nome)
+          .filter(Boolean);
+
+        setCurrentSetup({
+          date: activeTurno.date,
+          orderId: activeTurno.order_id,
+          clientName: 'Atendimento do Chão de Fábrica',
+          team,
+          deadline: '',
+          hoursAvailable: Number(activeTurno.hours_available),
+          checklists: activeTurno.checklist
+        });
+      }
+
+      // D) Buscar contagem de insumos críticos
+      const { count: dbLowStockCount } = await supabase
+        .from('insumos')
+        .select('*', { count: 'exact', head: true })
+        .lt('estoque_atual', 500);
+
+      setLowStockCount(dbLowStockCount || 0);
+
+      // E) Carregar perfil de usuário logado
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('usuarios')
+          .select('nome, cargo')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (profile) {
+          setUserProfile(profile);
+        } else {
+          setUserProfile({
+            nome: user.user_metadata?.nome || 'Administrador',
+            cargo: user.user_metadata?.is_super_admin ? 'Super Admin' : 'Gestor SaaS'
+          });
+        }
+      }
+
+    } catch (err) {
+      console.error('Erro ao buscar dados do Supabase:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleAddOrder = () => {
-    // Generate a new blank Order quickly and select it
-    const newId = `PED-2024-${(orders.length + 15).toString().padStart(3, '0')}`;
-    const newOrder: Order = {
-      id: newId,
-      clientName: "Nova Indústria Química S.A.",
-      location: "Belo Horizonte - MG",
-      emissionDate: new Date().toLocaleDateString('pt-BR'),
-      deliveryDate: "2026-07-30",
-      priority: "Média",
-      totalProduced: 0,
-      totalVolume: 5000,
-      efficiency: 91.0,
-      timeEstimated: 24,
-      items: [
-        { itemNum: "01", product: "Perfil Acabamento Borracha", measure: "15x15mm", totalQtd: 5000, produced: 0, tempoPeca: 1.2, extruder: "EXT-04", eta: "Aguardando", status: "Aberto" }
-      ]
-    };
+  useEffect(() => {
+    fetchData();
+  }, []);
 
-    setOrders([...orders, newOrder]);
-    setSelectedOrderId(newId);
+  const handleActionButtonClick = (screen: string) => {
+    switch (screen) {
+      case 'dashboard':
+      case 'pedidos':
+      case 'pedido-detail':
+        handleAddOrder();
+        break;
+      case 'fornecedores':
+      case 'fornecedor-cadastro':
+      case 'fornecedor-detail':
+        setIsAddingNewSupplier(true);
+        break;
+      case 'funcionarios':
+        setTriggerAddEmployee(prev => prev + 1);
+        break;
+      case 'materias-primas':
+        setTriggerAddMaterial(prev => prev + 1);
+        break;
+      case 'familias-skus':
+        setTriggerAddFamily(prev => prev + 1);
+        break;
+      default:
+        break;
+    }
+  };
+
+  // Handlers para Atualização de Pedidos / OPs
+  const handleUpdateOrder = async (updatedOrder: Order) => {
+    setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+    // Sincronização de pedidos no banco de dados pode ser expandida aqui
+  };
+
+  const handleAddOrder = async () => {
+    const newCode = `PED-2026-${(orders.length + 1).toString().padStart(3, '0')}`;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profile } = await supabase.from('usuarios').select('empresa_id').eq('id', user.id).single();
+    const empresaId = profile?.empresa_id;
+    if (!empresaId) return;
+
+    // Criar pedido padrão
+    const { data: pedRow, error } = await supabase
+      .from('pedidos')
+      .insert({
+        empresa_id: empresaId,
+        codigo: newCode,
+        nome_cliente: 'Cliente Padrão Industrial',
+        localizacao: 'São Paulo - SP',
+        prioridade: 'MEDIA'
+      })
+      .select()
+      .single();
+
+    if (error) {
+      alert(`Erro ao criar pedido: ${error.message}`);
+      return;
+    }
+
+    // Buscar um SKU padrão para iniciar o primeiro item da OP
+    const { data: skus } = await supabase.from('skus').select('id').limit(1);
+    if (skus && skus.length > 0) {
+      await supabase.from('ordens_producao').insert({
+        empresa_id: empresaId,
+        pedido_id: pedRow.id,
+        sku_id: skus[0].id,
+        quantidade_planejada: 1000,
+        status: 'ABERTA'
+      });
+    }
+
+    await fetchData();
+    setSelectedOrderId(newCode);
     setCurrentScreen('pedido-detail');
   };
 
-  // Handlers for Supplier Updates
-  const handleAddSupplier = (newSupplier: Supplier) => {
-    setSuppliers([...suppliers, newSupplier]);
+  // Handlers para Fornecedores
+  const handleAddSupplier = async (newSupplier: Supplier) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profile } = await supabase.from('usuarios').select('empresa_id').eq('id', user.id).single();
+    const empresaId = profile?.empresa_id;
+    if (!empresaId) return;
+
+    const { error } = await supabase
+      .from('fornecedores')
+      .insert({
+        empresa_id: empresaId,
+        nome: newSupplier.name,
+        cnpj: newSupplier.cnpj,
+        ie: newSupplier.IE,
+        categoria: newSupplier.categories[0],
+        rating: newSupplier.rating,
+        status: newSupplier.status,
+        contato_nome: newSupplier.contact,
+        contato_email: newSupplier.contactEmail,
+        endereco: newSupplier.address,
+        limite_financeiro: newSupplier.limit,
+        logo: newSupplier.logo,
+        audit_date: newSupplier.auditDate,
+        payment_term: newSupplier.paymentTerm,
+        currency: newSupplier.currency,
+        documents: newSupplier.documents,
+        history: newSupplier.history
+      });
+
+    if (error) {
+      alert(`Erro ao salvar fornecedor: ${error.message}`);
+    } else {
+      await fetchData();
+    }
   };
 
-  const handleUpdateSupplier = (updatedSup: Supplier) => {
-    setSuppliers(prev => prev.map(s => s.id === updatedSup.id ? updatedSup : s));
+  const handleUpdateSupplier = async (updatedSup: Supplier) => {
+    const { error } = await supabase
+      .from('fornecedores')
+      .update({
+        nome: updatedSup.name,
+        cnpj: updatedSup.cnpj,
+        ie: updatedSup.IE,
+        categoria: updatedSup.categories[0],
+        rating: updatedSup.rating,
+        status: updatedSup.status,
+        contato_nome: updatedSup.contact,
+        contato_email: updatedSup.contactEmail,
+        endereco: updatedSup.address,
+        limite_financeiro: updatedSup.limit,
+        logo: updatedSup.logo,
+        audit_date: updatedSup.auditDate,
+        payment_term: updatedSup.paymentTerm,
+        currency: updatedSup.currency,
+        documents: updatedSup.documents,
+        history: updatedSup.history
+      })
+      .eq('id', updatedSup.id);
+
+    if (error) {
+      alert(`Erro ao atualizar fornecedor: ${error.message}`);
+    } else {
+      await fetchData();
+    }
   };
 
   const selectedOrder = orders.find(o => o.id === selectedOrderId) || orders[0];
 
-  const handleStartProductionSetup = (setup: DailyProductionSetup) => {
-    setCurrentSetup(setup);
-    // Automatically redirect to active stopwatch pointing to check progress
+  // Configuração e persistência de Ficha de Turno
+  const handleStartProductionSetup = async (setup: DailyProductionSetup) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profile } = await supabase.from('usuarios').select('empresa_id').eq('id', user.id).single();
+    const empresaId = profile?.empresa_id;
+    if (!empresaId) return;
+
+    // Criar turno no banco
+    const { data: turnoRow, error } = await supabase
+      .from('turnos')
+      .insert({
+        empresa_id: empresaId,
+        order_id: setup.orderId,
+        date: setup.date,
+        extruder: 'EXT-04',
+        hours_available: setup.hoursAvailable,
+        checklist: setup.checklists
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Erro ao abrir turno no banco:', error.message);
+    } else if (turnoRow) {
+      // Registrar operadores vinculados ao turno
+      for (const opNome of setup.team) {
+        // Encontrar funcionário por nome correspondente
+        const { data: func } = await supabase
+          .from('funcionarios')
+          .select('id')
+          .eq('nome', opNome)
+          .maybeSingle();
+
+        if (func) {
+          await supabase.from('turnos_operadores').insert({
+            empresa_id: empresaId,
+            turno_id: turnoRow.id,
+            funcionario_id: func.id
+          });
+        }
+      }
+    }
+
+    await fetchData();
     setTimeout(() => {
       setCurrentScreen('apontamento');
     }, 1200);
@@ -98,23 +380,14 @@ export default function Home() {
             <DashboardScreen
               orders={orders}
               currentSetup={currentSetup}
+              userName={userProfile?.nome ? userProfile.nome.split(' ')[0] : 'Operador'}
+              lowStockCount={lowStockCount}
               onSelectOrder={(id) => {
                 setSelectedOrderId(id);
                 setCurrentScreen('pedido-detail');
               }}
               setCurrentScreen={setCurrentScreen}
             />
-            {/* Abertura setup section inline underneath as view fallback */}
-            <div className="mt-8 pt-8 border-t border-outline-variant">
-              <div className="mb-4">
-                <h4 className="text-sm font-black text-primary uppercase tracking-wider">Lançamento de Nova Auditoria / Turno</h4>
-                <p className="text-xs text-outline">Realize a abertura técnico-operacional regulamentada</p>
-              </div>
-              <AberturaProducao
-                orders={orders}
-                onStartProduction={handleStartProductionSetup}
-              />
-            </div>
           </div>
         );
 
@@ -129,7 +402,7 @@ export default function Home() {
                 </div>
                 <button
                   onClick={handleAddOrder}
-                  className="bg-secondary text-white text-xs font-bold px-4 py-2 rounded-lg cursor-pointer hover:bg-secondary/90 transition-colors"
+                  className="bg-[#002046] hover:bg-[#1b365d] text-white text-xs font-bold px-4 py-2 rounded-lg cursor-pointer transition-colors"
                 >
                   + CADASTRAR PEDIDO GERAL
                 </button>
@@ -179,7 +452,12 @@ export default function Home() {
         );
 
       case 'apontamento':
-        return <ApontamentoReal />;
+        return (
+          <ApontamentoScreen
+            orders={orders}
+            onStartProduction={handleStartProductionSetup}
+          />
+        );
 
       case 'reprogramacao':
         return <ReprogramacaoTecnica />;
@@ -198,10 +476,19 @@ export default function Home() {
         );
 
       case 'funcionarios':
-        return <Funcionarios />;
+        return <Funcionarios externalSearchQuery={globalSearch} triggerAddNew={triggerAddEmployee} />;
 
       case 'materias-primas':
-        return <MateriasPrimas suppliers={suppliers} />;
+        return <MateriasPrimas suppliers={suppliers} triggerAddNew={triggerAddMaterial} />;
+
+      case 'familias-skus':
+        return <FamiliasSkusScreen triggerAddNew={triggerAddFamily} />;
+
+      case 'bom-formulas':
+        return <BOMScreen />;
+
+      case 'configuracoes':
+        return <ConfiguracoesScreen />;
 
       default:
         return (
@@ -212,8 +499,16 @@ export default function Home() {
     }
   };
 
+  if (loading && orders.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-outline font-bold bg-background">
+        Carregando Módulos Operacionais...
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex text-primary select-none max-w-[100vw] overflow-x-hidden">
+    <div className="min-h-screen flex text-primary select-none max-w-[100vw] overflow-x-hidden bg-background">
       {/* Sidebar Nav */}
       <SideNavBar
         currentScreen={currentScreen}
@@ -223,21 +518,20 @@ export default function Home() {
           setIsAddingNewSupplier(true);
           setCurrentScreen('fornecedores');
         }}
+        onActionButtonClick={handleActionButtonClick}
       />
 
       {/* Main workspace box */}
       <main className="flex-1 min-h-screen flex flex-col bg-background relative overflow-y-auto">
-        {/* Top Header bar */}
         <TopAppBar
           currentScreen={currentScreen}
           setCurrentScreen={setCurrentScreen}
           onSearch={(query) => {
-            // Global search trigger alerts
-            console.log("Pesquisando: ", query);
+            setGlobalSearch(query);
           }}
         />
 
-        {/* Workspace body with custom paddings */}
+        {/* Workspace body */}
         <div className="flex-1 p-8 overflow-y-auto w-full max-w-7xl mx-auto space-y-6">
           {renderActiveScreen()}
         </div>
@@ -245,3 +539,4 @@ export default function Home() {
     </div>
   );
 }
+

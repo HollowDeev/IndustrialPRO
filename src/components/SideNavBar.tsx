@@ -6,13 +6,15 @@ interface SideNavBarProps {
   setCurrentScreen: (screen: string) => void;
   onNewOrder: () => void;
   onNewSupplier: () => void;
+  onActionButtonClick?: (screen: string) => void;
 }
 
 export default function SideNavBar({
   currentScreen,
   setCurrentScreen,
   onNewOrder,
-  onNewSupplier
+  onNewSupplier,
+  onActionButtonClick
 }: SideNavBarProps) {
   const [cadastrosOpen, setCadastrosOpen] = useState(true);
   const [producaoOpen, setProducaoOpen] = useState(true);
@@ -59,6 +61,32 @@ export default function SideNavBar({
 
           {cadastrosOpen && (
             <div className="pl-2 border-l border-outline-variant/60 ml-4 space-y-1">
+              {/* Famílias & SKUs */}
+              <button
+                onClick={() => setCurrentScreen('familias-skus')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200 text-left ${
+                  currentScreen === 'familias-skus'
+                    ? 'bg-primary-container text-on-primary-container font-bold border-l-4 border-secondary'
+                    : 'text-on-surface-variant hover:bg-surface-container-high'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[20px]">category</span>
+                <span>Famílias & SKUs</span>
+              </button>
+
+              {/* Fórmulas (BOM) */}
+              <button
+                onClick={() => setCurrentScreen('bom-formulas')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200 text-left ${
+                  currentScreen === 'bom-formulas'
+                    ? 'bg-primary-container text-on-primary-container font-bold border-l-4 border-secondary'
+                    : 'text-on-surface-variant hover:bg-surface-container-high'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[20px]">science</span>
+                <span>Fórmulas (BOM)</span>
+              </button>
+
               {/* Funcionários */}
               <button
                 onClick={() => setCurrentScreen('funcionarios')}
@@ -136,7 +164,7 @@ export default function SideNavBar({
                 <span>Pedidos</span>
               </button>
 
-              {/* Apontamento Real */}
+              {/* Apontamento Diário */}
               <button
                 onClick={() => setCurrentScreen('apontamento')}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200 text-left ${
@@ -145,23 +173,8 @@ export default function SideNavBar({
                     : 'text-on-surface-variant hover:bg-surface-container-high'
                 }`}
               >
-                <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: currentScreen === 'apontamento' ? "'FILL' 1" : undefined }}>
-                  edit_note
-                </span>
-                <span>Apontamento Real</span>
-              </button>
-
-              {/* Relatórios */}
-              <button
-                onClick={() => setCurrentScreen('reprogramacao')}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200 text-left ${
-                  currentScreen === 'reprogramacao'
-                    ? 'bg-primary-container text-on-primary-container font-bold border-l-4 border-secondary'
-                    : 'text-on-surface-variant hover:bg-surface-container-high'
-                }`}
-              >
-                <span className="material-symbols-outlined text-[20px]">analytics</span>
-                <span>Relatórios (Reprog.)</span>
+                <span className="material-symbols-outlined text-[20px]">edit_note</span>
+                <span>Apontamento Diário</span>
               </button>
             </div>
           )}
@@ -169,46 +182,55 @@ export default function SideNavBar({
       </nav>
 
       {/* Footer / Persistent Controls */}
-      <div className="p-4 border-t border-outline-variant space-y-2 mt-auto bg-surface-bright">
-        {/* Dynamic Context Button (Pedido / Supplier Registration) */}
-        {currentScreen.startsWith('fornecedor') ? (
-          <button
-            onClick={onNewSupplier}
-            className="w-full bg-secondary-container hover:brightness-95 hover:scale-[0.98] text-on-secondary-container font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 text-xs transition-all tracking-wider select-none shadow-sm cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[18px]">add</span>
-            NOVO REGISTRO
-          </button>
-        ) : (
-          <button
-            onClick={onNewOrder}
-            className="w-full bg-secondary-container hover:brightness-95 hover:scale-[0.98] text-on-secondary-container font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 text-xs transition-all tracking-wider select-none shadow-sm cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[18px]">add</span>
-            NOVO PEDIDO
-          </button>
-        )}
+      {(() => {
+        const getActionButtonLabel = () => {
+          switch (currentScreen) {
+            case 'dashboard':
+            case 'pedidos':
+            case 'pedido-detail':
+              return { text: 'NOVO PEDIDO', icon: 'add' };
+            case 'fornecedores':
+            case 'fornecedor-cadastro':
+            case 'fornecedor-detail':
+              return { text: 'NOVO FORNECEDOR', icon: 'add' };
+            case 'funcionarios':
+              return { text: 'NOVO FUNCIONÁRIO', icon: 'person_add' };
+            case 'materias-primas':
+              return { text: 'NOVO INSUMO', icon: 'add_box' };
+            case 'familias-skus':
+              return { text: 'NOVA FAMÍLIA', icon: 'category' };
+            default:
+              return null;
+          }
+        };
 
-        <button
-          onClick={() => alert('Configurações do Sistema HELPE v2.4.1')}
-          className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm text-on-surface-variant hover:bg-surface-container-high transition-colors duration-200 text-left"
-        >
-          <span className="material-symbols-outlined">settings</span>
-          <span className="font-medium text-xs">Configurações</span>
-        </button>
+        const action = getActionButtonLabel();
+        if (!action) return null;
 
-        <button
-          onClick={() => {
-            if (confirm('Deseja realmente sair? Dados locais salvos serão mantidos.')) {
-              window.location.reload();
-            }
-          }}
-          className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm text-error hover:bg-error-container/20 transition-colors duration-200 text-left"
-        >
-          <span className="material-symbols-outlined">logout</span>
-          <span className="font-medium text-xs">Sair</span>
-        </button>
-      </div>
+        return (
+          <div className="p-4 border-t border-outline-variant mt-auto bg-surface-bright">
+            <button
+              onClick={() => {
+                if (onActionButtonClick) {
+                  onActionButtonClick(currentScreen);
+                } else {
+                  if (currentScreen.startsWith('fornecedor')) {
+                    onNewSupplier();
+                  } else {
+                    onNewOrder();
+                  }
+                }
+              }}
+              className="w-full bg-[#002046] hover:bg-[#1b365d] hover:scale-[0.98] text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 text-xs transition-all tracking-wider select-none shadow-sm cursor-pointer border border-transparent"
+            >
+              <span className="material-symbols-outlined text-[18px]">
+                {action.icon}
+              </span>
+              <span>{action.text}</span>
+            </button>
+          </div>
+        );
+      })()}
     </aside>
   );
 }

@@ -1,51 +1,323 @@
-import React from 'react';
+"use client"
+
+import React, { useState, useEffect } from 'react';
 import { Order, DailyProductionSetup } from '../types';
+import { createClient } from '@/utils/supabase/client';
 
 interface DashboardScreenProps {
   orders: Order[];
   currentSetup: DailyProductionSetup | null;
   onSelectOrder: (orderId: string) => void;
   setCurrentScreen: (screen: string) => void;
+  userName?: string;
+  lowStockCount?: number;
+}
+
+interface DBOP {
+  id: string;
+  sku_id: string;
+  quantidade_planejada: number;
+  quantidade_produzida: number;
+  status: string;
+  skus: {
+    id: string;
+    codigo: string;
+    comprimento_mm: number;
+    desconto_aco_mm: number;
+    familia_id: string;
+    familias_produto: {
+      id: string;
+      nome: string;
+      area_secao_externa: number;
+      volume_aco_metro: number;
+      densidade_g_cm3: number;
+    };
+  };
+  pedidos: {
+    codigo: string;
+    nome_cliente: string;
+  };
+}
+
+interface DBInsumo {
+  id: string;
+  nome: string;
+  categoria: 'ACO' | 'QUIMICO' | 'EMBALAGEM' | 'OUTROS';
+  unidade_medida: string;
+  estoque_atual: number;
+}
+
+interface DBBOM {
+  id: string;
+  familia_id: string;
+  insumo_id: string;
+  quantidade_por_unidade: number;
+  percentual_blend: number | null;
+}
+
+interface HomologadoSupplier {
+  id: string;
+  fornecedor_id: string;
+  fornecedores: {
+    nome: string;
+    rating: number;
+  };
 }
 
 export default function DashboardScreen({
   orders,
   currentSetup,
   onSelectOrder,
-  setCurrentScreen
+  setCurrentScreen,
+  userName,
+  lowStockCount: initialLowStockCount = 0
 }: DashboardScreenProps) {
-  // Computations
-  const totalOrdersCount = orders.length;
-  const activeExtrudersCount = currentSetup ? 5 : 4;
+  const supabase = createClient();
 
-  const totalItemsCount = orders.reduce((sum, o) => sum + o.items.length, 0);
-  const itemsFinishedCount = orders.reduce(
-    (sum, o) => sum + o.items.filter(i => i.status === 'Finalizado').length,
-    0
-  );
+  const [loading, setLoading] = useState(true);
+  
+  // Dados dinâmicos do Banco
+  const [dbOPs, setDbOPs] = useState<DBOP[]>([]);
+  const [dbInsumos, setDbInsumos] = useState<DBInsumo[]>([]);
+  const [dbBOMs, setDbBOMs] = useState<DBBOM[]>([]);
+
+  // Estados do Modal de Ordem de Compra
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+  const [purchaseInsumo, setPurchaseInsumo] = useState<DBInsumo | null>(null);
+  const [purchaseQuantity, setPurchaseQuantity] = useState(0);
+  const [homologatedSuppliers, setHomologatedSuppliers] = useState<HomologadoSupplier[]>([]);
+  const [selectedSupplierName, setSelectedSupplierName] = useState('');
+  const [deliveryDate, setDeliveryDate] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+
+  // Carregar dados principais
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // A) Buscar OPs ativas ou planejadas
+      const { data: opsData } = await supabase
+        .from('ordens_producao')
+        .select(`
+          id,
+          sku_id,
+          quantidade_planejada,
+          quantidade_produzida,
+          status,
+          skus (
+            id,
+            codigo,
+            comprimento_mm,
+            desconto_aco_mm,
+            familia_id,
+            familias_produto (
+              id,
+              nome,
+              area_secao_externa,
+              volume_aco_metro,
+              densidade_g_cm3
+            )
+          ),
+          pedidos (
+            codigo,
+            nome_cliente
+          )
+        `)
+        .in('status', ['ABERTA', 'EM_ANDAMENTO']);
+
+      // B) Buscar estoque atual de insumos
+      const { data: insumosData } = await supabase
+        .from('insumos')
+        .select('*')
+        .order('nome');
+
+      // C) Buscar BOM receitas
+      const { data: bomData } = await supabase
+        .from('bom')
+        .select('*');
+
+      if (opsData) setDbOPs(opsData as any);
+      if (insumosData) setDbInsumos(insumosData as any);
+      if (bomData) setDbBOMs(bomData as any);
+    } catch (err) {
+      console.error('Erro ao carregar dados do painel:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  // --- CÁLCULOS DO MRP I (Explosão de Necessidades Líquidas) ---
+  const getMRPCalculations = () => {
+    const requirements: Record<string, { insumo: DBInsumo; totalRequired: number }> = {};
+
+    // Inicializar requirements com estoque atual de cada insumo
+    dbInsumos.forEach(ins => {
+      requirements[ins.id] = { insumo: ins, totalRequired: 0 };
+    });
+
+    // Calcular requisitos para cada OP ativa
+    dbOPs.forEach(op => {
+      if (!op.skus || !op.skus.familias_produto) return;
+      
+      const qtyToProduce = Math.max(0, op.quantidade_planejada - op.quantidade_produzida);
+      if (qtyToProduce <= 0) return;
+
+      const sku = op.skus;
+      const fam = sku.familias_produto;
+
+      // Metros de aço:
+      const acoMetros = ((sku.comprimento_mm - sku.desconto_aco_mm) / 1000.0) * qtyToProduce;
+      const acoPesoKg = acoMetros * 0.395; // Ø8mm nominal weight
+
+      // Volume geométrico de plástico:
+      const volAcoTotal = fam.volume_aco_metro * ((sku.comprimento_mm - sku.desconto_aco_mm) / 1000.0) * qtyToProduce;
+      const volPlasticoLiquido = (fam.area_secao_externa * (sku.comprimento_mm / 1000.0) * qtyToProduce) - volAcoTotal;
+      const volumeM3 = volPlasticoLiquido < 0 ? 0 : volPlasticoLiquido;
+      
+      // Massa do blend plástico (kg):
+      const massaPlasticoKg = volumeM3 * (fam.densidade_g_cm3 * 1000.0);
+
+      // Buscar BOM para esta família
+      const familyBOMs = dbBOMs.filter(b => b.familia_id === fam.id);
+
+      familyBOMs.forEach(bom => {
+        if (!requirements[bom.insumo_id]) return;
+
+        const reqObj = requirements[bom.insumo_id];
+        if (reqObj.insumo.categoria === 'ACO') {
+          reqObj.totalRequired += acoPesoKg;
+        } else if (reqObj.insumo.categoria === 'QUIMICO' && bom.percentual_blend !== null) {
+          reqObj.totalRequired += massaPlasticoKg * (bom.percentual_blend / 100.0);
+        } else {
+          // Outros (ex: dosagens nominais)
+          reqObj.totalRequired += bom.quantidade_por_unidade * massaPlasticoKg;
+        }
+      });
+    });
+
+    return Object.values(requirements);
+  };
+
+  const mrpList = getMRPCalculations();
+
+  // Verificação de Rombo de Estoque
+  const hasMRPAlert = mrpList.some(item => item.insumo.estoque_atual < item.totalRequired);
+  const lowStockCount = mrpList.filter(item => item.insumo.estoque_atual < 500).length;
+
+  // KPIs Zona 1
+  const carteiraVendasPecas = dbOPs.reduce((sum, op) => sum + (op.quantidade_planejada - op.quantidade_produzida), 0);
+  const volumeEstoqueToneladas = dbInsumos
+    .filter(i => i.categoria === 'ACO' || i.categoria === 'QUIMICO')
+    .reduce((sum, i) => sum + (Number(i.estoque_atual) / 1000.0), 0);
+
+  // Abertura de Modal de Ordem de Compra
+  const handleOpenPurchaseModal = async (insumo: DBInsumo, requiredAmount: number) => {
+    const deficit = Math.max(0, requiredAmount - insumo.estoque_atual);
+    // Sugere Déficit + 10% de margem de segurança
+    const suggested = Math.ceil(deficit * 1.1);
+
+    setPurchaseInsumo(insumo);
+    setPurchaseQuantity(suggested);
+
+    // Buscar fornecedores homologados para o insumo
+    const { data: supData } = await supabase
+      .from('fornecedores_insumos')
+      .select(`
+        id,
+        fornecedor_id,
+        fornecedores (
+          nome,
+          rating
+        )
+      `)
+      .eq('insumo_id', insumo.id);
+
+    if (supData) {
+      setHomologatedSuppliers(supData as any);
+      if (supData.length > 0 && supData[0].fornecedores) {
+        setSelectedSupplierName(supData[0].fornecedores.nome);
+      } else {
+        setSelectedSupplierName('');
+      }
+    } else {
+      setHomologatedSuppliers([]);
+      setSelectedSupplierName('');
+    }
+
+    // Set default delivery date (+7 days)
+    const future = new Date();
+    future.setDate(future.getDate() + 7);
+    setDeliveryDate(future.toISOString().split('T')[0]);
+
+    setIsPurchaseModalOpen(true);
+  };
+
+  // Salvar Ordem de Compra
+  const handleSavePurchaseOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!purchaseInsumo || !selectedSupplierName) return;
+
+    setActionLoading(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase.from('usuarios').select('empresa_id').eq('id', user.id).single();
+      const empresaId = profile?.empresa_id;
+      if (!empresaId) return;
+
+      const { error } = await supabase
+        .from('ordens_compra')
+        .insert({
+          empresa_id: empresaId,
+          fornecedor: selectedSupplierName,
+          insumo_id: purchaseInsumo.id,
+          quantidade_pedida: purchaseQuantity,
+          status: 'PENDENTE',
+          data_entrega_prevista: deliveryDate ? new Date(deliveryDate).toISOString() : null
+        });
+
+      if (error) {
+        alert(`Erro ao criar ordem de compra: ${error.message}`);
+      } else {
+        alert(`Ordem de compra emitida com sucesso para o fornecedor: ${selectedSupplierName}!`);
+        setIsPurchaseModalOpen(false);
+        await loadDashboardData();
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  if (loading && dbOPs.length === 0) {
+    return (
+      <div className="flex items-center justify-center p-12 text-outline font-bold">
+        Sincronizando painel PCP/MRP...
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
       {/* Welcome Banner / Overview */}
       <div className="bg-primary-container text-on-primary-container p-6 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-outline-variant shadow-xs">
         <div>
-          <h3 className="text-xl font-bold tracking-tight">Bem-vindo ao HELPE, Fabrício</h3>
+          <h3 className="text-xl font-bold tracking-tight">Bem-vindo ao HELPE, {userName || 'Operador'}</h3>
           <p className="text-sm text-on-primary-container/85 mt-1 leading-relaxed">
-            Planta de Coextrusão Ativa. O turno de hoje está operando com estabilidade térmica e rendimento de OEE satisfatório.
+            Planta de Coextrusão Ativa. Visualização integrada de PCP/MRP para gestão e controle de estoque de fábrica.
           </p>
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => setCurrentScreen('apontamento')}
-            className="bg-secondary-container hover:brightness-95 text-on-secondary-container font-bold text-xs px-4 py-2.5 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs"
-          >
-            <span className="material-symbols-outlined text-[18px]">timer</span>
-            APONTAR PARADA
-          </button>
-          
-          <button
             onClick={() => setCurrentScreen('pedidos')}
-            className="bg-surface-lowest text-primary hover:bg-surface-container-low font-bold text-xs px-4 py-2.5 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs border border-outline-variant"
+            className="bg-[#002046] text-white hover:bg-[#1b365d] font-bold text-xs px-5 py-3 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs border border-transparent"
           >
             <span className="material-symbols-outlined text-[18px]">production_quantity_limits</span>
             VER PEDIDOS
@@ -53,232 +325,280 @@ export default function DashboardScreen({
         </div>
       </div>
 
-      {/* Production Quick Stats Grid */}
+      {/* ZONA 1: KPIs Estratégicos (Módulo 1) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         
-        {/* Stat 1: OEE Efficiency */}
+        {/* KPI 1: Carteira de Vendas */}
         <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant shadow-xs flex items-center gap-4">
           <div className="p-3 rounded-xl bg-tertiary-fixed text-primary shrink-0">
             <span className="material-symbols-outlined text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-              bolt
+              shopping_cart
             </span>
           </div>
           <div>
-            <span className="text-[10px] uppercase font-bold text-outline tracking-wider">Eficiência OEE</span>
-            <p className="text-2xl font-black text-primary">89.4%</p>
-            <p className="text-[10px] text-on-tertiary-container font-semibold mt-0.5">Meta: 85% (Superada)</p>
+            <span className="text-[10px] uppercase font-bold text-outline tracking-wider">Carteira de Vendas</span>
+            <p className="text-2xl font-black text-primary">{carteiraVendasPecas.toLocaleString()} <span className="text-xs font-semibold text-outline">pcs</span></p>
+            <p className="text-[10px] text-on-tertiary-container font-semibold mt-0.5">Demanda líquida pendente</p>
           </div>
         </div>
 
-        {/* Stat 2: Active Extruders */}
+        {/* KPI 2: Volume de Estoque - Blend */}
         <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant shadow-xs flex items-center gap-4">
           <div className="p-3 rounded-xl bg-surface-container-high text-primary shrink-0">
+            <span className="material-symbols-outlined text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+              layers
+            </span>
+          </div>
+          <div>
+            <span className="text-[10px] uppercase font-bold text-outline tracking-wider">Estoque de Blend</span>
+            <p className="text-2xl font-black text-primary font-mono">{volumeEstoqueToneladas.toFixed(2)} t</p>
+            <p className="text-[10px] text-outline mt-0.5">Aço e Químicos cadastrados</p>
+          </div>
+        </div>
+
+        {/* KPI 3: Alerta de MRP */}
+        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant shadow-xs flex items-center gap-4">
+          <div className={`p-3 rounded-xl shrink-0 ${hasMRPAlert ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+            <span className="material-symbols-outlined text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+              {hasMRPAlert ? 'report' : 'check_circle'}
+            </span>
+          </div>
+          <div>
+            <span className="text-[10px] uppercase font-bold text-outline tracking-wider">Alerta de MRP</span>
+            <p className="text-2xl font-black text-primary">{hasMRPAlert ? 'Déficit' : 'Suprido'}</p>
+            <p className={`text-[10px] font-semibold mt-0.5 ${hasMRPAlert ? 'text-red-600' : 'text-green-600'}`}>
+              {hasMRPAlert ? 'Necessidades não cobertas' : 'Estoque cobre demandas'}
+            </p>
+          </div>
+        </div>
+
+        {/* KPI 4: Ordens em Produção */}
+        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant shadow-xs flex items-center gap-4">
+          <div className="bg-surface-container-high text-primary p-3 rounded-xl shrink-0">
             <span className="material-symbols-outlined text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>
               precision_manufacturing
             </span>
           </div>
           <div>
-            <span className="text-[10px] uppercase font-bold text-outline tracking-wider">Linhas Ativas</span>
-            <p className="text-2xl font-black text-primary">{activeExtrudersCount} / 6</p>
-            <p className="text-[10px] text-outline mt-0.5">EXT-04 em velocidade 100%</p>
-          </div>
-        </div>
-
-        {/* Stat 3: Volume of Pieces Finished */}
-        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant shadow-xs flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-surface-container-high text-primary shrink-0">
-            <span className="material-symbols-outlined text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-              inventory_2
-            </span>
-          </div>
-          <div>
-            <span className="text-[10px] uppercase font-bold text-outline tracking-wider">Itens OPs</span>
-            <p className="text-2xl font-black text-primary">{itemsFinishedCount} / {totalItemsCount}</p>
-            <p className="text-[10px] text-outline mt-0.5">Conclusão de {Math.round((itemsFinishedCount / totalItemsCount) * 100)}% das metas</p>
-          </div>
-        </div>
-
-        {/* Stat 4: Active Warnings */}
-        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant shadow-xs flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-secondary-container text-on-secondary-container shrink-0">
-            <span className="material-symbols-outlined text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-              warning
-            </span>
-          </div>
-          <div>
-            <span className="text-[10px] uppercase font-bold text-outline tracking-wider">Alertas de Manut.</span>
-            <p className="text-2xl font-black text-primary">1 Ativo</p>
-            <p className="text-[10px] text-secondary font-semibold mt-0.5">Filtro de tela EXT-09 obstruído</p>
+            <span className="text-[10px] uppercase font-bold text-outline tracking-wider">OPs Ativas</span>
+            <p className="text-2xl font-black text-primary">{dbOPs.filter(o => o.status === 'EM_ANDAMENTO').length}</p>
+            <p className="text-[10px] text-outline mt-0.5">Ordens em execução</p>
           </div>
         </div>
 
       </div>
 
-      {/* Main section: Orders List with technical previews & side checklists */}
+      {/* GRID DE TRABALHO: ZONA 2 (MRP I) & ZONA 3 (Bateladas) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* Orders list - Left span-8 block */}
+        {/* ZONA 2: Tabela do MRP I - Left span-8 block */}
         <div className="lg:col-span-8 bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-xs space-y-4">
-          <div className="flex items-center justify-between border-b border-surface-container pb-3.5">
-            <div>
-              <h4 className="text-sm font-black text-primary uppercase tracking-wider">Metas Técnicas por Ordem de Produção</h4>
-              <p className="text-xs text-outline mt-0.5">Selecione uma OP para editar medidas, volumes e emitir novos laudos</p>
-            </div>
-            <span className="text-xs bg-surface-container-high text-outline font-bold px-2 py-1 rounded-sm">
-              Total {totalOrdersCount} OPs
-            </span>
+          <div>
+            <h4 className="text-sm font-black text-primary uppercase tracking-wider">Zona 2: Tabela de Necessidades MRP I</h4>
+            <p className="text-xs text-outline mt-0.5">Balizamento de demandas físicas projetadas das OPs ativas vs. saldos em estoque</p>
           </div>
 
-          <div className="divide-y divide-outline-variant/30 text-xs">
-            {orders.map(order => {
-              const totalItems = order.items.length;
-              const producedVolume = order.items.reduce((sum, item) => sum + item.produced, 0);
-              const requestedVolume = order.items.reduce((sum, item) => sum + item.totalQtd, 0);
-              const progress = requestedVolume > 0 ? Math.round((producedVolume / requestedVolume) * 100) : 0;
-
-              return (
-                <div
-                  key={order.id}
-                  onClick={() => onSelectOrder(order.id)}
-                  className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:bg-surface-container-low/40 px-3 rounded-xl transition-all group"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-sm text-primary group-hover:text-secondary transition-colors">
-                        {order.id}
-                      </span>
-                      <span className="w-1.5 h-1.5 rounded-full bg-outline-variant"></span>
-                      <span className={`px-2 py-0.5 rounded-sm font-black text-[9px] uppercase tracking-wide ${
-                        order.priority === 'Alta' 
-                          ? 'bg-secondary-container text-on-secondary-container' 
-                          : 'bg-surface-container-highest text-outline'
-                      }`}>
-                        {order.priority}
-                      </span>
-                    </div>
-                    <p className="font-semibold text-primary">{order.clientName}</p>
-                    <p className="text-outline text-[11px]">{order.location}</p>
-                  </div>
-
-                  {/* Volume visual bar metric */}
-                  <div className="sm:text-right space-y-1">
-                    <p className="font-bold text-primary">
-                      {producedVolume.toLocaleString()} / {requestedVolume.toLocaleString()} <span className="text-outline font-semibold">un</span>
-                    </p>
-                    
-                    <div className="flex items-center gap-2 justify-end">
-                      <div className="w-24 bg-surface-container-high h-1.5 rounded-full overflow-hidden">
-                        <div className="bg-primary h-full" style={{ width: `${progress}%` }} />
-                      </div>
-                      <span className="font-mono font-bold text-secondary text-[11px]">{progress}%</span>
-                    </div>
-                  </div>
-
-                  {/* Button trigger arrow indicator */}
-                  <div className="shrink-0 hidden sm:block">
-                    <span className="material-symbols-outlined text-outline group-hover:text-secondary group-hover:translate-x-1 transition-all">
-                      arrow_right_alt
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="overflow-hidden rounded-xl border border-outline-variant/60">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-surface-container-low font-bold text-[#74777f] uppercase text-[9px] tracking-wider border-b border-outline-variant">
+                  <th className="p-3">Matéria-Prima</th>
+                  <th className="p-3 text-center">Exigido OPs</th>
+                  <th className="p-3 text-center">Disponível</th>
+                  <th className="p-3 text-center">Status MRP</th>
+                  <th className="p-3 text-center">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-outline-variant/30">
+                {mrpList.map(item => {
+                  const hasDeficit = item.insumo.estoque_atual < item.totalRequired;
+                  return (
+                    <tr key={item.insumo.id} className="hover:bg-surface-container-low/40">
+                      <td className="p-3 font-bold text-primary">{item.insumo.nome}</td>
+                      <td className="p-3 text-center font-mono font-bold text-outline">
+                        {item.totalRequired.toLocaleString(undefined, { maximumFractionDigits: 2 })} {item.insumo.unidade_medida}
+                      </td>
+                      <td className="p-3 text-center font-mono font-bold">
+                        {Number(item.insumo.estoque_atual).toLocaleString(undefined, { maximumFractionDigits: 2 })} {item.insumo.unidade_medida}
+                      </td>
+                      <td className="p-3 text-center">
+                        <span className={`px-2 py-0.5 rounded-sm font-black text-[9px] uppercase tracking-wide ${
+                          hasDeficit ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'
+                        }`}>
+                          {hasDeficit ? 'Déficit' : 'Suprido'}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center">
+                        {hasDeficit ? (
+                          <button
+                            onClick={() => handleOpenPurchaseModal(item.insumo, item.totalRequired)}
+                            className="bg-secondary text-white hover:bg-secondary/95 px-2.5 py-1.5 rounded-md text-[10px] font-bold cursor-pointer transition-colors"
+                          >
+                            Gerar Ordem
+                          </button>
+                        ) : (
+                          <span className="text-outline text-[10px] font-semibold">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* Current Active Setup & Shortcuts - Right span-4 block */}
+        {/* ZONA 3: Status do Chão de Fábrica (Progresso de Batelada) - Right span-4 block */}
         <div className="lg:col-span-4 space-y-6">
-          
-          {/* Active setup review */}
           <div className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-xs space-y-4">
-            <h4 className="text-xs font-black text-primary uppercase tracking-wider">Ficha de Turno Corrente</h4>
+            <div>
+              <h4 className="text-xs font-black text-primary uppercase tracking-wider">Zona 3: Progresso de Batelada</h4>
+              <p className="text-[10px] text-outline mt-0.5">Acompanhamento de metas de produção física em tempo real</p>
+            </div>
             
-            {currentSetup ? (
-              <div className="space-y-3">
-                <div className="p-3 bg-tertiary-container/15 rounded-xl border border-tertiary-container text-xs text-primary">
-                  <header className="flex justify-between font-bold text-[11px] uppercase text-on-tertiary-container">
-                    <span>Data: {currentSetup.date}</span>
-                    <span className="text-secondary font-black">EXT-04 ATIVA</span>
-                  </header>
-                  <p className="font-semibold mt-2 text-primary">OP: {currentSetup.orderId}</p>
-                  <p className="text-outline mt-0.5">Cliente: {currentSetup.clientName}</p>
-                  <p className="text-outline mt-0.5">Duração programada: {currentSetup.hoursAvailable}h de turno</p>
-                </div>
+            <div className="space-y-4">
+              {dbOPs.map(op => {
+                const progress = op.quantidade_planejada > 0 
+                  ? Math.round((op.quantidade_produzida / op.quantidade_planejada) * 100) 
+                  : 0;
 
-                <div className="text-xs">
-                  <span className="text-outline font-semibold uppercase text-[10px]">Equipe de Operadores:</span>
-                  <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    {currentSetup.team.map(name => (
-                      <span key={name} className="bg-surface-container-low text-primary border border-outline-variant/40 rounded-sm p-1 px-1.5 text-[10px] font-semibold">
-                        {name}
+                const remPieces = Math.max(0, op.quantidade_planejada - op.quantidade_produzida);
+                let targetDateStr = 'Concluído';
+                
+                if (remPieces > 0) {
+                  // Estimativa matemática: 25 peças por hora, turno de 12 horas por dia (300 peças/dia)
+                  const daysNeeded = Math.ceil(remPieces / 300);
+                  const targetDate = new Date();
+                  targetDate.setDate(targetDate.getDate() + daysNeeded);
+                  targetDateStr = targetDate.toLocaleDateString('pt-BR');
+                }
+
+                return (
+                  <div key={op.id} className="space-y-1.5 border-b pb-3 last:border-0 last:pb-0">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-mono font-bold text-primary">{op.pedidos?.codigo} - {op.pedidos?.nome_cliente}</span>
+                      <span className="text-[10px] bg-surface-container text-outline px-1.5 py-0.2 rounded font-bold uppercase">
+                        {op.status === 'EM_ANDAMENTO' ? 'Em Execução' : 'Pendente'}
                       </span>
-                    ))}
+                    </div>
+                    
+                    <div className="flex justify-between items-center text-[11px] text-outline">
+                      <span>SKU: {op.skus?.codigo}</span>
+                      <span className="font-bold text-primary font-mono">{op.quantidade_produzida} / {op.quantidade_planejada} un</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className="w-full bg-surface-container-high h-2 rounded-full overflow-hidden">
+                        <div className="bg-[#002046] h-full" style={{ width: `${progress}%` }} />
+                      </div>
+                      <span className="font-mono font-bold text-secondary text-xs">{progress}%</span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-[10px] text-outline-variant bg-surface-container-low px-2 py-1 rounded">
+                      <span className="font-bold uppercase tracking-wider text-[9px] text-outline">Previsão Fechamento:</span>
+                      <span className="font-mono font-bold text-primary">{targetDateStr}</span>
+                    </div>
                   </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center p-5 bg-surface-container-low rounded-xl border border-dashed border-outline-variant space-y-3 text-xs">
-                <p className="text-outline">Nenhum turno de auditoria iniciado formalmente nas calandras ainda.</p>
-                <button
-                  onClick={() => setCurrentScreen('dashboard')} // Scrolls down or selects Abertura
-                  className="bg-primary text-white text-xs font-black px-4 py-2 rounded-lg cursor-pointer hover:bg-primary-container"
-                >
-                  PREENCHER AUDITORIA AGORA
-                </button>
-              </div>
-            )}
+                );
+              })}
+              {dbOPs.length === 0 && (
+                <p className="text-xs text-outline text-center py-6">Nenhuma Ordem de Produção ativa no momento.</p>
+              )}
+            </div>
           </div>
-
-          {/* Quick Operations Guide shortcuts */}
-          <div className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-xs space-y-3">
-            <h4 className="text-xs font-black text-primary uppercase tracking-wider mb-2">Procedimentos Operacionais</h4>
-            
-            <button
-              onClick={() => setCurrentScreen('apontamento')}
-              className="w-full flex items-center justify-between p-3.5 bg-surface-bright hover:bg-surface-container-low rounded-xl border border-outline-variant/40 transition-colors text-left"
-            >
-              <div className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-secondary text-[24px]">troubleshoot</span>
-                <div>
-                  <p className="text-xs font-bold text-primary">Apontar Paradas Clínicas</p>
-                  <p className="text-[10px] text-outline">Lançar alarmes AJU-05 mecânicos</p>
-                </div>
-              </div>
-              <span className="material-symbols-outlined text-[16px] text-outline">chevron_right</span>
-            </button>
-
-            <button
-              onClick={() => setCurrentScreen('reprogramacao')}
-              className="w-full flex items-center justify-between p-3.5 bg-surface-bright hover:bg-surface-container-low rounded-xl border border-outline-variant/40 transition-colors text-left"
-            >
-              <div className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-secondary text-[24px]">tune</span>
-                <div>
-                  <p className="text-xs font-bold text-primary">Simulação de Otimização</p>
-                  <p className="text-[10px] text-outline">Recalcular deltas por velocidade</p>
-                </div>
-              </div>
-              <span className="material-symbols-outlined text-[16px] text-outline">chevron_right</span>
-            </button>
-
-            <button
-              onClick={() => setCurrentScreen('fornecedores')}
-              className="w-full flex items-center justify-between p-3.5 bg-surface-bright hover:bg-surface-container-low rounded-xl border border-outline-variant/40 transition-colors text-left"
-            >
-              <div className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-secondary text-[24px]">verified</span>
-                <div>
-                  <p className="text-xs font-bold text-primary">Homologar Parceiro</p>
-                  <p className="text-[10px] text-outline">Verificar ISO 9001:2015 ativo</p>
-                </div>
-              </div>
-              <span className="material-symbols-outlined text-[16px] text-outline">chevron_right</span>
-            </button>
-          </div>
-
         </div>
 
       </div>
+
+      {/* ================= MODAL DE GERAR ORDEM DE COMPRA (ZONA 2) ================= */}
+      {isPurchaseModalOpen && purchaseInsumo && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <form onSubmit={handleSavePurchaseOrder} className="bg-white max-w-md w-full rounded-2xl shadow-2xl p-6 border border-outline-variant space-y-4">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="text-sm font-black text-primary uppercase flex items-center gap-2">
+                <span className="material-symbols-outlined text-[18px]">shopping_bag</span>
+                Sugerir Compra de Insumo
+              </h3>
+              <button 
+                type="button" 
+                onClick={() => setIsPurchaseModalOpen(false)}
+                className="text-outline hover:text-primary transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div className="space-y-3.5 text-xs">
+              <div>
+                <span className="block text-[10px] font-bold text-outline uppercase">Matéria-Prima Solicitada</span>
+                <span className="font-bold text-primary text-sm">{purchaseInsumo.nome}</span>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-outline uppercase mb-1">Quantidade Sugerida (Déficit + 10%)</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    required
+                    value={purchaseQuantity}
+                    onChange={(e) => setPurchaseQuantity(Number(e.target.value))}
+                    className="w-full bg-surface-container-low border border-outline-variant rounded-lg p-2.5 font-bold focus:outline-none focus:ring-1 focus:ring-secondary"
+                  />
+                  <span className="absolute right-3 top-2.5 text-outline font-bold">{purchaseInsumo.unidade_medida}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-outline uppercase mb-1">Fornecedores Homologados</label>
+                <select
+                  required
+                  value={selectedSupplierName}
+                  onChange={(e) => setSelectedSupplierName(e.target.value)}
+                  className="w-full bg-surface-container-low border border-outline-variant rounded-lg p-2.5 font-semibold focus:outline-none focus:ring-1 focus:ring-secondary"
+                >
+                  {homologatedSuppliers.length === 0 ? (
+                    <option value="">Nenhum fornecedor cadastrado...</option>
+                  ) : (
+                    homologatedSuppliers.map(sup => (
+                      <option key={sup.id} value={sup.fornecedores?.nome}>
+                        {sup.fornecedores?.nome} (Rating: {sup.fornecedores?.rating}/100)
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-outline uppercase mb-1">Previsão de Entrega</label>
+                <input
+                  type="date"
+                  required
+                  value={deliveryDate}
+                  onChange={(e) => setDeliveryDate(e.target.value)}
+                  className="w-full bg-surface-container-low border border-outline-variant rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-secondary font-semibold"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-outline-variant">
+              <button
+                type="button"
+                onClick={() => setIsPurchaseModalOpen(false)}
+                className="bg-surface-container hover:bg-surface-container-high text-primary font-bold px-4 py-2 rounded-lg text-xs cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={actionLoading}
+                className="bg-[#002046] hover:bg-[#1b365d] text-white font-bold px-4 py-2 rounded-lg text-xs cursor-pointer"
+              >
+                {actionLoading ? 'Registrando Ordem...' : 'Emitir Ordem de Compra'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

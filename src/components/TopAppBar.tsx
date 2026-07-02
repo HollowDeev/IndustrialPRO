@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { createClient } from '../utils/supabase/client';
 
 interface TopAppBarProps {
   currentScreen: string;
@@ -11,7 +12,59 @@ export default function TopAppBar({
   setCurrentScreen,
   onSearch
 }: TopAppBarProps) {
-  const [searchValue, setSearchValue] = React.useState('');
+  const [searchValue, setSearchValue] = useState('');
+  const [userProfile, setUserProfile] = useState<{ nome: string; cargo: string } | null>(null);
+  const [notifications, setNotifications] = useState<{ id: string; text: string; type: string }[]>([]);
+  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+
+  const supabase = createClient();
+
+  // Carregar dados de perfil do usuário logado
+  useEffect(() => {
+    const loadUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('usuarios')
+          .select('nome, cargo')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (profile) {
+          setUserProfile(profile);
+        } else {
+          setUserProfile({
+            nome: user.user_metadata?.nome || 'Administrador',
+            cargo: user.user_metadata?.is_super_admin ? 'Super Admin' : 'Gestor SaaS'
+          });
+        }
+      }
+    };
+
+    loadUser();
+  }, []);
+
+  // Carregar Alertas Reais de Estoque Baixo para as Notificações
+  useEffect(() => {
+    const loadNotifications = async () => {
+      const { data: lowStock } = await supabase
+        .from('insumos')
+        .select('nome, estoque_atual, unidade_medida')
+        .lt('estoque_atual', 500)
+        .limit(5);
+
+      const alerts = (lowStock || []).map((ins, idx) => ({
+        id: `alert-${idx}`,
+        text: `Estoque crítico: ${ins.nome} (${Number(ins.estoque_atual)} ${ins.unidade_medida})`,
+        type: 'warning'
+      }));
+
+      setNotifications(alerts);
+    };
+
+    loadNotifications();
+  }, []);
 
   const getBreadcrumbs = () => {
     switch (currentScreen) {
@@ -31,17 +84,6 @@ export default function TopAppBar({
           { name: 'Pedidos', action: () => setCurrentScreen('pedidos') },
           { name: 'Detalhamento do Pedido', active: true }
         ];
-      case 'apontamento':
-        return [
-          { name: 'HELPE', action: () => setCurrentScreen('dashboard') },
-          { name: 'Painel do Operador', action: () => setCurrentScreen('dashboard') },
-          { name: 'Apontamento Real de Paradas', active: true }
-        ];
-      case 'reprogramacao':
-        return [
-          { name: 'HELPE', action: () => setCurrentScreen('dashboard') },
-          { name: 'Relatórios de Eficiência', active: true }
-        ];
       case 'funcionarios':
         return [
           { name: 'HELPE', action: () => setCurrentScreen('dashboard') },
@@ -57,17 +99,15 @@ export default function TopAppBar({
           { name: 'HELPE', action: () => setCurrentScreen('dashboard') },
           { name: 'Gestão de Fornecedores', active: true }
         ];
-      case 'fornecedor-cadastro':
+      case 'familias-skus':
         return [
           { name: 'HELPE', action: () => setCurrentScreen('dashboard') },
-          { name: 'Fornecedores', action: () => setCurrentScreen('fornecedores') },
-          { name: 'Cadastro de Novo Fornecedor', active: true }
+          { name: 'Famílias & SKUs', active: true }
         ];
-      case 'fornecedor-detail':
+      case 'bom-formulas':
         return [
           { name: 'HELPE', action: () => setCurrentScreen('dashboard') },
-          { name: 'Fornecedores', action: () => setCurrentScreen('fornecedores') },
-          { name: 'Perfil do Fornecedor', active: true }
+          { name: 'Fórmulas (BOM)', active: true }
         ];
       default:
         return [{ name: 'HELPE', active: true }];
@@ -77,25 +117,21 @@ export default function TopAppBar({
   const getTitle = () => {
     switch (currentScreen) {
       case 'dashboard':
-        return 'Dashboard Geral e Abertura de OP';
+        return 'Dashboard Geral e Ficha de Turno';
       case 'pedidos':
         return 'Gestão e Planejamento de Pedidos';
       case 'pedido-detail':
         return 'Ficha Técnica do Pedido e OP';
-      case 'apontamento':
-        return 'Painel de Apontamento Técnico de Paradas';
-      case 'reprogramacao':
-        return 'Simulação e Reprogramação de Linhas';
       case 'funcionarios':
         return 'Cadastro e Controle de Funcionários';
       case 'materias-primas':
         return 'Controle de Matérias-Primas';
       case 'fornecedores':
         return 'Portal de Fornecedores Homologados';
-      case 'fornecedor-cadastro':
-        return 'Preenchimento cadastral de Fornecedor';
-      case 'fornecedor-detail':
-        return 'Detalhamento Técnico de Fornecedor';
+      case 'familias-skus':
+        return 'Engenharia de Catálogo e SKUs';
+      case 'bom-formulas':
+        return 'Fórmulas de Produto (BOM)';
       default:
         return 'Gestão Industrial';
     }
@@ -109,8 +145,11 @@ export default function TopAppBar({
     }
   };
 
+  const avatarName = userProfile?.nome || 'Carregando';
+  const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(avatarName)}&background=1b365d&color=fff&size=150`;
+
   return (
-    <header className="bg-surface-container-lowest border-b border-outline-variant px-8 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 z-30 select-none">
+    <header className="bg-surface-container-lowest border-b border-outline-variant px-8 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 z-30 select-none relative">
       {/* Search & Breadcrumbs */}
       <div className="flex flex-col gap-1.5 flex-1">
         {/* Breadcrumb row */}
@@ -137,7 +176,7 @@ export default function TopAppBar({
       </div>
 
       {/* Global search entry & user status component */}
-      <div className="flex items-center gap-5 justify-between md:justify-end shrink-0">
+      <div className="flex items-center gap-5 justify-between md:justify-end shrink-0 relative">
         {/* Search Input bar */}
         <div className="relative max-w-xs hidden sm:block">
           <span className="material-symbols-outlined absolute left-3 top-2.5 text-[20px] text-outline">
@@ -152,27 +191,95 @@ export default function TopAppBar({
           />
         </div>
 
-        {/* Dynamic Alerts Indicator */}
-        <div className="relative group cursor-pointer">
-          <button className="relative p-2 rounded-full hover:bg-surface-container-high transition-colors">
+        {/* Dynamic Alerts Indicator with Dropdown */}
+        <div className="relative">
+          <button 
+            onClick={() => setShowNotifDropdown(!showNotifDropdown)}
+            className="relative p-2 rounded-full hover:bg-surface-container-high transition-colors cursor-pointer"
+          >
             <span className="material-symbols-outlined text-[24px] text-primary">notifications</span>
-            <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-secondary-container rounded-full ring-2 ring-surface"></span>
+            {notifications.length > 0 && (
+              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-surface"></span>
+            )}
           </button>
+
+          {showNotifDropdown && (
+            <div className="absolute right-0 mt-2 w-80 bg-white border border-outline-variant rounded-2xl shadow-xl z-50 p-4 space-y-3">
+              <div className="flex justify-between items-center border-b pb-2">
+                <span className="text-xs font-black text-primary uppercase">Notificações ({notifications.length})</span>
+                <button 
+                  onClick={() => setShowNotifDropdown(false)} 
+                  className="text-[10px] text-outline hover:text-primary font-bold uppercase"
+                >
+                  Fechar
+                </button>
+              </div>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <p className="text-xs text-outline text-center py-4">Nenhum alerta de estoque pendente.</p>
+                ) : (
+                  notifications.map(n => (
+                    <div key={n.id} className="p-2.5 bg-red-50 text-red-700 text-xs rounded-lg border border-red-100 flex items-start gap-2">
+                      <span className="material-symbols-outlined text-[16px] mt-0.5">warning</span>
+                      <span>{n.text}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* User Card */}
-        <div className="flex items-center gap-3 bg-surface-container-low px-4 py-1.5 rounded-full border border-outline-variant">
-          <div className="text-right">
-            <p className="text-xs font-bold text-primary">Fabrício Rodrigues</p>
-            <p className="text-[10px] font-semibold text-outline tracking-wider uppercase">Extrusora Turno A</p>
+        {/* User Card with dropdown click */}
+        <div className="relative">
+          <div 
+            onClick={() => setShowUserDropdown(!showUserDropdown)}
+            className="flex items-center gap-3 bg-surface-container-low px-4 py-1.5 rounded-full border border-outline-variant cursor-pointer hover:bg-surface-container-high transition-colors select-none"
+          >
+            <div className="text-right">
+              <p className="text-xs font-bold text-primary">{userProfile?.nome || 'Carregando...'}</p>
+              <p className="text-[10px] font-semibold text-outline tracking-wider uppercase">{userProfile?.cargo || '...'}</p>
+            </div>
+            <img
+              src={avatarUrl}
+              alt={avatarName}
+              className="w-8 h-8 rounded-full border border-secondary object-cover shadow-xs"
+            />
+            <span className="material-symbols-outlined text-xs text-outline">
+              {showUserDropdown ? 'expand_less' : 'expand_more'}
+            </span>
           </div>
-          <img
-            src="https://ui-avatars.com/api/?name=Fabricio+Rodrigues&background=1b365d&color=fff&size=150"
-            alt="Fabrício"
-            className="w-8 h-8 rounded-full border border-secondary object-cover shadow-xs"
-          />
+
+          {showUserDropdown && (
+            <div className="absolute right-0 mt-2 w-48 bg-white border border-outline-variant rounded-2xl shadow-xl z-50 p-2 space-y-1">
+              <button
+                onClick={() => {
+                  setCurrentScreen('configuracoes');
+                  setShowUserDropdown(false);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-primary hover:bg-surface-container-low rounded-lg transition-colors text-left cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[16px]">settings</span>
+                <span>Configurações</span>
+              </button>
+              
+              <button
+                onClick={async () => {
+                  if (confirm('Deseja realmente sair do sistema?')) {
+                    await supabase.auth.signOut();
+                    window.location.href = '/login';
+                  }
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors text-left cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[16px]">logout</span>
+                <span>Sair</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>
   );
 }
+

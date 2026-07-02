@@ -19,107 +19,25 @@ import {
   ChevronRight,
   UserPlus
 } from 'lucide-react';
+import { createClient } from '../utils/supabase/client';
 
-const INITIAL_EMPLOYEES: Employee[] = [
-  {
-    id: "EMP-001",
-    firstName: "Carlos",
-    lastName: "Silva",
-    birthDate: "1988-04-12",
-    civilStatus: "Casado",
-    address: "Rua das Acácias, 120",
-    city: "São Paulo",
-    state: "SP",
-    zipCode: "03120-010",
-    admissionDate: "2021-02-15",
-    role: "Operador Sênior de Extrusora",
-    hourlyWage: 35.00,
-    workingHoursRegime: 8,
-    punctualityHistory: [
-      { id: "p-1", date: "2026-06-22", arrivalTime: "07:55", lunchStart: "12:00", lunchEnd: "13:00", departureTime: "17:05" },
-      { id: "p-2", date: "2026-06-23", arrivalTime: "08:00", lunchStart: "12:00", lunchEnd: "13:00", departureTime: "18:30" },
-      { id: "p-3", date: "2026-06-24", arrivalTime: "07:50", lunchStart: "12:00", lunchEnd: "13:00", departureTime: "17:30" }
-    ],
-    qualities: {
-      empilhadeira: true,
-      laser: false,
-      habilitadoDirigir: true,
-      lixadeira: false,
-      controleQualidade: false,
-      extrusorNivel1: true,
-      extrusorNivel2: true
-    }
-  },
-  {
-    id: "EMP-002",
-    firstName: "Amanda",
-    lastName: "Rodrigues",
-    birthDate: "1995-09-22",
-    civilStatus: "Solteira",
-    address: "Av. Paulista, 1500 - Ap 42",
-    city: "São Paulo",
-    state: "SP",
-    zipCode: "01311-200",
-    admissionDate: "2023-05-10",
-    role: "Analista de Controle de Qualidade",
-    hourlyWage: 28.50,
-    workingHoursRegime: 8,
-    punctualityHistory: [
-      { id: "p-4", date: "2026-06-22", arrivalTime: "08:00", lunchStart: "12:00", lunchEnd: "13:00", departureTime: "17:00" },
-      { id: "p-5", date: "2026-06-23", arrivalTime: "07:45", lunchStart: "12:00", lunchEnd: "13:00", departureTime: "17:15" },
-      { id: "p-6", date: "2026-06-24", arrivalTime: "08:00", lunchStart: "12:15", lunchEnd: "13:15", departureTime: "18:00" }
-    ],
-    qualities: {
-      empilhadeira: false,
-      laser: true,
-      habilitadoDirigir: false,
-      lixadeira: false,
-      controleQualidade: true,
-      extrusorNivel1: false,
-      extrusorNivel2: false
-    }
-  },
-  {
-    id: "EMP-003",
-    firstName: "Roberto",
-    lastName: "Sanches",
-    birthDate: "1991-11-05",
-    civilStatus: "Divorciado",
-    address: "Rua Vergueiro, 3050",
-    city: "São Bernardo do Campo",
-    state: "SP",
-    zipCode: "09750-220",
-    admissionDate: "2022-10-01",
-    role: "Técnico de Manutenção Mecânica",
-    hourlyWage: 31.20,
-    workingHoursRegime: 8,
-    punctualityHistory: [
-      { id: "p-7", date: "2026-06-22", arrivalTime: "08:02", lunchStart: "12:00", lunchEnd: "13:00", departureTime: "17:00" },
-      { id: "p-8", date: "2026-06-23", arrivalTime: "07:55", lunchStart: "12:00", lunchEnd: "13:00", departureTime: "17:00" }
-    ],
-    qualities: {
-      empilhadeira: true,
-      laser: false,
-      habilitadoDirigir: true,
-      lixadeira: true,
-      controleQualidade: false,
-      extrusorNivel1: false,
-      extrusorNivel2: false
-    }
-  }
-];
+export default function Funcionarios({ 
+  externalSearchQuery,
+  triggerAddNew
+}: { 
+  externalSearchQuery?: string;
+  triggerAddNew?: number;
+}) {
+  const supabase = createClient();
 
-export default function Funcionarios() {
-  const [employees, setEmployees] = useState<Employee[]>(() => {
-    const saved = localStorage.getItem('helpe_employees');
-    return saved ? JSON.parse(saved) : INITIAL_EMPLOYEES;
-  });
-
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(() => {
-    const saved = localStorage.getItem('helpe_employees');
-    const list = saved ? JSON.parse(saved) : INITIAL_EMPLOYEES;
-    return list.length > 0 ? list[0].id : '';
-  });
+  useEffect(() => {
+    if (triggerAddNew !== undefined && triggerAddNew > 0) {
+      handleStartAddNew();
+    }
+  }, [triggerAddNew]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
+  const [loading, setLoading] = useState(true);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isEditing, setIsEditing] = useState(false);
@@ -165,12 +83,40 @@ export default function Funcionarios() {
     departureTime: '17:00'
   });
 
-  // Save to local storage on changes
-  useEffect(() => {
-    localStorage.setItem('helpe_employees', JSON.stringify(employees));
-  }, [employees]);
+  const fetchEmployees = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('funcionarios')
+        .select('*')
+        .order('nome');
 
-  // Handle selected employee selection change
+      if (data) {
+        const mapped = data.map((item: any) => ({
+          ...item.metadados,
+          id: item.id,
+          customId: item.metadados?.customId || item.metadados?.id || 'EMP',
+          firstName: item.metadados?.firstName || item.nome.split(' ')[0],
+          lastName: item.metadados?.lastName || item.nome.split(' ').slice(1).join(' '),
+          role: item.cargo || item.metadados?.role || 'Operador',
+          ativo: item.ativo
+        }));
+        setEmployees(mapped);
+        if (mapped.length > 0 && !selectedEmployeeId) {
+          setSelectedEmployeeId(mapped[0].id);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
+
   const currentEmployee = employees.find(e => e.id === selectedEmployeeId);
 
   useEffect(() => {
@@ -182,7 +128,6 @@ export default function Funcionarios() {
     setIsEditing(false);
   }, [selectedEmployeeId, employees]);
 
-  // Helpers to calculate hours worked
   const parseTimeToHours = (timeStr: string): number => {
     if (!timeStr) return 0;
     const [hours, minutes] = timeStr.split(':').map(Number);
@@ -207,17 +152,14 @@ export default function Funcionarios() {
     return extra > 0 ? parseFloat(extra.toFixed(2)) : 0;
   };
 
-  // Sum of total hours worked in punctuality history
   const calculateTotalHours = (history: PunctualityRecord[]): number => {
-    return history.reduce((acc, p) => acc + calculateDailyHours(p), 0);
+    return (history || []).reduce((acc, p) => acc + calculateDailyHours(p), 0);
   };
 
-  // Sum of total extra hours worked
   const calculateTotalExtraHours = (history: PunctualityRecord[], regime: number): number => {
-    return history.reduce((acc, p) => acc + calculateDailyExtra(p, regime), 0);
+    return (history || []).reduce((acc, p) => acc + calculateDailyExtra(p, regime), 0);
   };
 
-  // Calculate monthly salary based on sum of hours * hourly wage
   const calculateMonthlySalary = (employee: Employee): number => {
     const hours = calculateTotalHours(employee.punctualityHistory);
     return parseFloat((hours * employee.hourlyWage).toFixed(2));
@@ -229,11 +171,10 @@ export default function Funcionarios() {
     return `${h}h ${m > 0 ? `${m}m` : '00m'}`;
   };
 
-  // Filtered employees
   const filteredEmployees = employees.filter(e => {
     const fullName = `${e.firstName} ${e.lastName}`.toLowerCase();
-    const query = searchTerm.toLowerCase();
-    return fullName.includes(query) || e.role.toLowerCase().includes(query) || e.id.toLowerCase().includes(query);
+    const query = (externalSearchQuery || searchTerm || '').toLowerCase();
+    return fullName.includes(query) || e.role.toLowerCase().includes(query) || (e.customId || '').toLowerCase().includes(query);
   });
 
   const handleStartAddNew = () => {
@@ -267,21 +208,21 @@ export default function Funcionarios() {
     setIsAddingNew(true);
   };
 
-  const handleCreateEmployee = (e: React.FormEvent) => {
+  const handleCreateEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEmp.id || !newEmp.firstName || !newEmp.lastName || !newEmp.role) {
       alert('Por favor, preencha o Código, Nome, Sobrenome e Função.');
       return;
     }
 
-    // Check code duplication
-    if (employees.some(emp => emp.id === newEmp.id)) {
-      alert(`Já existe um funcionário cadastrado com o código ${newEmp.id}.`);
-      return;
-    }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: profile } = await supabase.from('usuarios').select('empresa_id').eq('id', user.id).single();
+    const empresaId = profile?.empresa_id;
+    if (!empresaId) return;
 
-    const created: Employee = {
-      id: newEmp.id,
+    const metadataObj = {
+      customId: newEmp.id,
       firstName: newEmp.firstName,
       lastName: newEmp.lastName,
       birthDate: newEmp.birthDate || '',
@@ -295,16 +236,26 @@ export default function Funcionarios() {
       hourlyWage: Number(newEmp.hourlyWage) || 20,
       workingHoursRegime: Number(newEmp.workingHoursRegime) || 8,
       punctualityHistory: [],
-      qualities: newEmp.qualities as EmployeeQualities
+      qualities: newEmp.qualities
     };
 
-    const updatedList = [...employees, created];
-    setEmployees(updatedList);
-    setSelectedEmployeeId(created.id);
-    setIsAddingNew(false);
+    const { error } = await supabase.from('funcionarios').insert({
+      empresa_id: empresaId,
+      nome: `${newEmp.firstName} ${newEmp.lastName}`,
+      cargo: newEmp.role,
+      ativo: true,
+      metadados: metadataObj
+    });
+
+    if (error) {
+      alert(`Erro ao criar funcionário: ${error.message}`);
+    } else {
+      setIsAddingNew(false);
+      await fetchEmployees();
+    }
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editForm) return;
 
@@ -313,40 +264,67 @@ export default function Funcionarios() {
       return;
     }
 
-    const updatedList = employees.map(emp => emp.id === editForm.id ? editForm : emp);
-    setEmployees(updatedList);
-    setIsEditing(false);
+    const metadataObj = {
+      customId: editForm.customId || editForm.id,
+      firstName: editForm.firstName,
+      lastName: editForm.lastName,
+      birthDate: editForm.birthDate || '',
+      civilStatus: editForm.civilStatus || 'Solteiro(a)',
+      address: editForm.address || '',
+      city: editForm.city || '',
+      state: editForm.state || 'SP',
+      zipCode: editForm.zipCode || '',
+      admissionDate: editForm.admissionDate || '',
+      role: editForm.role,
+      hourlyWage: Number(editForm.hourlyWage) || 20,
+      workingHoursRegime: Number(editForm.workingHoursRegime) || 8,
+      punctualityHistory: editForm.punctualityHistory || [],
+      qualities: editForm.qualities
+    };
+
+    const { error } = await supabase
+      .from('funcionarios')
+      .update({
+        nome: `${editForm.firstName} ${editForm.lastName}`,
+        cargo: editForm.role,
+        metadados: metadataObj
+      })
+      .eq('id', editForm.id);
+
+    if (error) {
+      alert(`Erro ao atualizar funcionário: ${error.message}`);
+    } else {
+      setIsEditing(false);
+      await fetchEmployees();
+    }
   };
 
-  const handleDeleteEmployee = (id: string) => {
+  const handleDeleteEmployee = async (id: string) => {
     if (confirm('Deseja realmente excluir este funcionário?')) {
-      const updatedList = employees.filter(emp => emp.id !== id);
-      setEmployees(updatedList);
-      if (selectedEmployeeId === id && updatedList.length > 0) {
-        setSelectedEmployeeId(updatedList[0].id);
-      } else if (updatedList.length === 0) {
-        setSelectedEmployeeId('');
+      const { error } = await supabase.from('funcionarios').delete().eq('id', id);
+      if (error) {
+        alert(`Erro ao excluir: ${error.message}`);
+      } else {
+        await fetchEmployees();
       }
     }
   };
 
-  // Add a punctuality record to the active employee
-  const handleAddPunctualityRecord = (e: React.FormEvent) => {
+  const handleAddPunctualityRecord = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentEmployee) return;
 
     const record: PunctualityRecord = {
       id: `p-${Date.now()}`,
-      date: newPunct.date.split('-').reverse().join('/'), // Convert YYYY-MM-DD to DD/MM/YYYY
+      date: newPunct.date.split('-').reverse().join('/'),
       arrivalTime: newPunct.arrivalTime,
       lunchStart: newPunct.lunchStart,
       lunchEnd: newPunct.lunchEnd,
       departureTime: newPunct.departureTime
     };
 
-    const updatedHistory = [...currentEmployee.punctualityHistory, record];
+    const updatedHistory = [...(currentEmployee.punctualityHistory || []), record];
     
-    // Sort history by date descending
     updatedHistory.sort((a,b) => {
       const parseDateStr = (str: string) => {
         const [d, m, y] = str.split('/').map(Number);
@@ -355,39 +333,59 @@ export default function Funcionarios() {
       return parseDateStr(b.date) - parseDateStr(a.date);
     });
 
-    const updatedEmployee: Employee = {
+    const metadataObj = {
       ...currentEmployee,
       punctualityHistory: updatedHistory
     };
 
-    setEmployees(employees.map(emp => emp.id === currentEmployee.id ? updatedEmployee : emp));
-    
-    // Reset form except date (keep the date for consecutive logs)
-    setNewPunct(prev => ({
-      ...prev,
-      arrivalTime: '08:00',
-      lunchStart: '12:00',
-      lunchEnd: '13:00',
-      departureTime: '17:00'
-    }));
-  };
+    const { error } = await supabase
+      .from('funcionarios')
+      .update({
+        metadados: metadataObj
+      })
+      .eq('id', currentEmployee.id);
 
-  // Delete punctuality record
-  const handleDeletePunctualityRecord = (recordId: string) => {
-    if (!currentEmployee) return;
-
-    if (confirm('Remover este registro de ponto?')) {
-      const updatedHistory = currentEmployee.punctualityHistory.filter(r => r.id !== recordId);
-      const updatedEmployee: Employee = {
-        ...currentEmployee,
-        punctualityHistory: updatedHistory
-      };
-      setEmployees(employees.map(emp => emp.id === currentEmployee.id ? updatedEmployee : emp));
+    if (error) {
+      alert(`Erro ao salvar ponto: ${error.message}`);
+    } else {
+      await fetchEmployees();
+      setNewPunct(prev => ({
+        ...prev,
+        arrivalTime: '08:00',
+        lunchStart: '12:00',
+        lunchEnd: '13:00',
+        departureTime: '17:00'
+      }));
     }
   };
 
-  // Quality Toggle handler for either New, Edit, or Current Employee context
-  const handleToggleQuality = (qualityKey: keyof EmployeeQualities) => {
+  const handleDeletePunctualityRecord = async (recordId: string) => {
+    if (!currentEmployee) return;
+
+    if (confirm('Remover este registro de ponto?')) {
+      const updatedHistory = (currentEmployee.punctualityHistory || []).filter(r => r.id !== recordId);
+      
+      const metadataObj = {
+        ...currentEmployee,
+        punctualityHistory: updatedHistory
+      };
+
+      const { error } = await supabase
+        .from('funcionarios')
+        .update({
+          metadados: metadataObj
+        })
+        .eq('id', currentEmployee.id);
+
+      if (error) {
+        alert(`Erro ao remover ponto: ${error.message}`);
+      } else {
+        await fetchEmployees();
+      }
+    }
+  };
+
+  const handleToggleQuality = async (qualityKey: keyof EmployeeQualities) => {
     if (isAddingNew) {
       setNewEmp(prev => ({
         ...prev,
@@ -405,18 +403,31 @@ export default function Funcionarios() {
         }
       });
     } else if (currentEmployee) {
-      const updatedEmployee: Employee = {
-        ...currentEmployee,
-        qualities: {
-          ...currentEmployee.qualities,
-          [qualityKey]: !currentEmployee.qualities[qualityKey]
-        }
+      const updatedQualities = {
+        ...currentEmployee.qualities,
+        [qualityKey]: !currentEmployee.qualities[qualityKey]
       };
-      setEmployees(employees.map(emp => emp.id === currentEmployee.id ? updatedEmployee : emp));
+
+      const metadataObj = {
+        ...currentEmployee,
+        qualities: updatedQualities
+      };
+
+      const { error } = await supabase
+        .from('funcionarios')
+        .update({
+          metadados: metadataObj
+        })
+        .eq('id', currentEmployee.id);
+
+      if (error) {
+        alert(`Erro ao atualizar qualidades: ${error.message}`);
+      } else {
+        await fetchEmployees();
+      }
     }
   };
 
-  // Mapping from English property key to Portuguese labels
   const QUALITY_LABELS: { key: keyof EmployeeQualities; label: string }[] = [
     { key: 'empilhadeira', label: 'Operação de Empilhadeira' },
     { key: 'laser', label: 'Operação de Laser' },
@@ -426,6 +437,14 @@ export default function Funcionarios() {
     { key: 'extrusorNivel1', label: 'Extrusor Nível 1' },
     { key: 'extrusorNivel2', label: 'Extrusor Nível 2' }
   ];
+
+  if (loading && employees.length === 0) {
+    return (
+      <div className="flex items-center justify-center p-12 text-outline font-bold">
+        Carregando Quadro de Colaboradores...
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6" id="funcionarios-screen-container">
