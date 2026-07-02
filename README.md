@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🏭 Helpe - Sistema Integrado de Gestão Industrial (PCP & MRP I)
 
-## Getting Started
+> Plataforma SaaS Multi-Tenant desenvolvida para o planejamento, controle e automação da gestão de materiais (MRP I) em ambientes de manufatura polimérica.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 📋 Sobre o Projeto
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+O **Helpe Gestão Industrial** atua como a Unidade Central de Processamento do escritório de produção. O sistema foi projetado para substituir rotinas descentralizadas por um banco de dados relacional robusto, orquestrando desde a entrada de demandas de vendas até a explosão de necessidades líquidas de matéria-prima (Aço e Blends Poliméricos).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+O núcleo do sistema baseia-se em conceitos rigorosos de **Engenharia de Produção**, estabelecendo matrizes de geometria paramétrica (Famílias e SKUs) e blindando a Árvore de Estrutura de Produto (BOM - *Bill of Materials*) contra falhas operacionais.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 🛠️ Stack Tecnológica e Arquitetura
 
-To learn more about Next.js, take a look at the following resources:
+Este projeto utiliza uma arquitetura *API-First* e *Serverless*, garantindo alta disponibilidade, escalabilidade e segurança de ponta a ponta.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Camada | Tecnologia | Propósito / Aplicação Operacional |
+| :--- | :--- | :--- |
+| **Front-end** | Next.js (App Router) + React | Interface de usuário reativa, renderização híbrida e rotas protegidas. |
+| **Estilização** | Tailwind CSS | Padronização de design system e responsividade. |
+| **Back-end & DB** | PostgreSQL | Motor relacional, *Database Functions* e armazenamento seguro de laudos. |
+| **Autenticação** | PostgreSQL | Gestão de identidade com suporte a *White-label SMTP*. |
+| **Segurança (DB)** | PostgreSQL RLS | Isolamento criptográfico de inquilinos (*Multi-Tenancy*). |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## ⚙️ Módulo 1 - Funcionalidades Principais (Core)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+* **📦 Catálogo Paramétrico e SKUs:** Cadastro de famílias de produtos e suas variáveis dimensionais, fixando constantes físicas (ex: densidade volumétrica, peso nominal por metro linear).
+* **🧪 Engenharia de Produto (BOM):** Formulação química travada no banco de dados, controlando percentuais exatos de misturas (PEAD, XLPO, Aditivos) e descontos operacionais (ex: tolerância de maquinário e cortes de aço).
+* **💥 Motor de Explosão de Necessidades (MRP I):** Cálculo automatizado que converte a demanda de vendas em metros lineares, massa e volume líquido, sugerindo Ordens de Compra baseadas no saldo de estoque real.
+* **📊 Apontamentos de Produção:** Registro do ciclo de vida das Ordens de Produção, contabilizando horas de máquina, consumo de insumos, setup e geração de refugo.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+### Clonagem do Repositório
+Este é um software proprietário.
+É estritamente proibida a cópia, modificação, distribuição, publicação, engenharia 
+reversa ou uso comercial deste código fonte, de seus algoritmos e arquivos 
+associados sem a autorização prévia, expressa e por escrito do autor.
+
+O acesso de leitura ao repositório, quando concedido a terceiros, é feito unicamente 
+para fins de auditoria, acompanhamento de desenvolvimento e homologação visual, 
+não constituindo, em nenhuma hipótese, transferência de direitos autorais ou de 
+propriedade intelectual.
