@@ -20,7 +20,7 @@ Este projeto utiliza uma arquitetura *API-First* e *Serverless*, garantindo alta
 | :--- | :--- | :--- |
 | **Front-end** | Next.js (App Router) + React | Interface de usuário reativa, renderização híbrida e rotas protegidas. |
 | **Estilização** | Tailwind CSS | Padronização de design system e responsividade. |
-| **Back-end & DB** | PostgreSQL | Motor relacional, *Database Functions* e armazenamento seguro de laudos. |
+| **Back-end & DB** | Server-Side Next.js | PostgreSQL | Motor relacional, *Database Functions* e armazenamento seguro de laudos. |
 | **Autenticação** | PostgreSQL | Gestão de identidade com suporte a *White-label SMTP*. |
 | **Segurança (DB)** | PostgreSQL RLS | Isolamento criptográfico de inquilinos (*Multi-Tenancy*). |
 
@@ -33,8 +33,9 @@ Este projeto utiliza uma arquitetura *API-First* e *Serverless*, garantindo alta
 * **💥 Motor de Explosão de Necessidades (MRP I):** Cálculo automatizado que converte a demanda de vendas em metros lineares, massa e volume líquido, sugerindo Ordens de Compra baseadas no saldo de estoque real.
 * **📊 Apontamentos de Produção:** Registro do ciclo de vida das Ordens de Produção, contabilizando horas de máquina, consumo de insumos, setup e geração de refugo.
 
+---
 
-### Clonagem do Repositório
+## ⚠️ Clonagem do Repositório 
 Este é um software proprietário.
 É estritamente proibida a cópia, modificação, distribuição, publicação, engenharia 
 reversa ou uso comercial deste código fonte, de seus algoritmos e arquivos 
