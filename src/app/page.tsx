@@ -36,6 +36,16 @@ export default function Home() {
   const [triggerAddEmployee, setTriggerAddEmployee] = useState(0);
   const [triggerAddMaterial, setTriggerAddMaterial] = useState(0);
   const [triggerAddFamily, setTriggerAddFamily] = useState(0);
+  
+  // States para Modal de Novo Pedido
+  const [isAddOrderModalOpen, setIsAddOrderModalOpen] = useState(false);
+  const [newOrderCode, setNewOrderCode] = useState('');
+  const [newOrderClient, setNewOrderClient] = useState('');
+  const [newOrderLocation, setNewOrderLocation] = useState('');
+  const [newOrderPriority, setNewOrderPriority] = useState('MEDIA');
+  const [newOrderSKUId, setNewOrderSKUId] = useState('');
+  const [newOrderQty, setNewOrderQty] = useState('1000');
+  const [dbSKUs, setDbSKUs] = useState<{ id: string; codigo: string; comprimento_mm: number }[]>([]);
 
   // Carregar dados principais do banco de dados (Supabase)
   const fetchData = async () => {
@@ -61,8 +71,8 @@ export default function Home() {
           status: op.status === 'ABERTA' ? 'Aberto' : op.status === 'FINALIZADA' ? 'Finalizado' : 'Em Andamento'
         }));
 
-        const totalVolume = items.reduce((sum, i) => sum + i.totalQtd, 0);
-        const totalProduced = items.reduce((sum, i) => sum + i.produced, 0);
+        const totalVolume = items.reduce((sum: number, i: typeof items[0]) => sum + i.totalQtd, 0);
+        const totalProduced = items.reduce((sum: number, i: typeof items[0]) => sum + i.produced, 0);
 
         return {
           id: ped.codigo,
@@ -164,6 +174,15 @@ export default function Home() {
         }
       }
 
+      // F) Carregar SKUs
+      const { data: skusData } = await supabase
+        .from('skus')
+        .select('id, codigo, comprimento_mm')
+        .order('codigo');
+      if (skusData) {
+        setDbSKUs(skusData);
+      }
+
     } catch (err) {
       console.error('Erro ao buscar dados do Supabase:', err);
     } finally {
@@ -207,8 +226,28 @@ export default function Home() {
     // Sincronização de pedidos no banco de dados pode ser expandida aqui
   };
 
-  const handleAddOrder = async () => {
+  const handleAddOrder = () => {
     const newCode = `PED-2026-${(orders.length + 1).toString().padStart(3, '0')}`;
+    setNewOrderCode(newCode);
+    setNewOrderClient('');
+    setNewOrderLocation('');
+    setNewOrderPriority('MEDIA');
+    if (dbSKUs.length > 0) {
+      setNewOrderSKUId(dbSKUs[0].id);
+    } else {
+      setNewOrderSKUId('');
+    }
+    setNewOrderQty('1000');
+    setIsAddOrderModalOpen(true);
+  };
+
+  const handleCreateOrderSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newOrderCode || !newOrderClient || !newOrderSKUId) {
+      alert('Por favor, preencha os campos obrigatórios.');
+      return;
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -216,15 +255,14 @@ export default function Home() {
     const empresaId = profile?.empresa_id;
     if (!empresaId) return;
 
-    // Criar pedido padrão
     const { data: pedRow, error } = await supabase
       .from('pedidos')
       .insert({
         empresa_id: empresaId,
-        codigo: newCode,
-        nome_cliente: 'Cliente Padrão Industrial',
-        localizacao: 'São Paulo - SP',
-        prioridade: 'MEDIA'
+        codigo: newOrderCode,
+        nome_cliente: newOrderClient,
+        localizacao: newOrderLocation || 'São Paulo - SP',
+        prioridade: newOrderPriority
       })
       .select()
       .single();
@@ -234,20 +272,18 @@ export default function Home() {
       return;
     }
 
-    // Buscar um SKU padrão para iniciar o primeiro item da OP
-    const { data: skus } = await supabase.from('skus').select('id').limit(1);
-    if (skus && skus.length > 0) {
-      await supabase.from('ordens_producao').insert({
-        empresa_id: empresaId,
-        pedido_id: pedRow.id,
-        sku_id: skus[0].id,
-        quantidade_planejada: 1000,
-        status: 'ABERTA'
-      });
-    }
+    const qty = parseInt(newOrderQty) || 1000;
+    await supabase.from('ordens_producao').insert({
+      empresa_id: empresaId,
+      pedido_id: pedRow.id,
+      sku_id: newOrderSKUId,
+      quantidade_planejada: qty,
+      status: 'ABERTA'
+    });
 
+    setIsAddOrderModalOpen(false);
     await fetchData();
-    setSelectedOrderId(newCode);
+    setSelectedOrderId(newOrderCode);
     setCurrentScreen('pedido-detail');
   };
 
@@ -536,6 +572,129 @@ export default function Home() {
           {renderActiveScreen()}
         </div>
       </main>
+
+      {/* ================= MODAL DE CADASTRO DE NOVO PEDIDO ================= */}
+      {isAddOrderModalOpen && (
+        <div className="fixed inset-0 bg-black/55 flex items-center justify-center z-[999] p-4 animate-fade-in">
+          <form onSubmit={handleCreateOrderSubmit} className="bg-white max-w-lg w-full rounded-2xl shadow-2xl p-6 border border-outline-variant space-y-4">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="text-sm font-black text-[#002046] uppercase flex items-center gap-2">
+                <span className="material-symbols-outlined text-[20px]">add_shopping_cart</span>
+                Cadastrar Novo Pedido Geral
+              </h3>
+              <button 
+                type="button" 
+                onClick={() => setIsAddOrderModalOpen(false)}
+                className="text-[#74777f] hover:text-primary transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div>
+                <label className="block text-[10px] font-bold text-[#74777f] uppercase mb-1">Código do Pedido</label>
+                <input
+                  type="text"
+                  required
+                  value={newOrderCode}
+                  onChange={(e) => setNewOrderCode(e.target.value.toUpperCase())}
+                  className="w-full bg-[#f4f3f9] border border-outline-variant rounded-lg p-2.5 font-mono font-bold text-primary focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-[#74777f] uppercase mb-1">Nome do Cliente</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Rodoplex Distribuidora"
+                  value={newOrderClient}
+                  onChange={(e) => setNewOrderClient(e.target.value)}
+                  className="w-full bg-[#f4f3f9] border border-outline-variant rounded-lg p-2.5 font-bold text-primary focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div>
+                <label className="block text-[10px] font-bold text-[#74777f] uppercase mb-1">Localização (Cidade - UF)</label>
+                <input
+                  type="text"
+                  placeholder="Ex: São Paulo - SP"
+                  value={newOrderLocation}
+                  onChange={(e) => setNewOrderLocation(e.target.value)}
+                  className="w-full bg-[#f4f3f9] border border-outline-variant rounded-lg p-2.5 font-semibold text-primary focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-[#74777f] uppercase mb-1">Prioridade</label>
+                <select
+                  value={newOrderPriority}
+                  onChange={(e) => setNewOrderPriority(e.target.value)}
+                  className="w-full bg-[#f4f3f9] border border-outline-variant rounded-lg p-2.5 font-semibold text-primary focus:outline-none"
+                >
+                  <option value="BAIXA">Baixa</option>
+                  <option value="MEDIA">Média</option>
+                  <option value="ALTA">Alta</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="border-t pt-4 border-outline-variant/40 space-y-4">
+              <h4 className="text-[10px] font-black text-secondary uppercase tracking-wider">Item Inicial da OP</h4>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div>
+                  <label className="block text-[10px] font-bold text-[#74777f] uppercase mb-1">SKU do Produto</label>
+                  <select
+                    required
+                    value={newOrderSKUId}
+                    onChange={(e) => setNewOrderSKUId(e.target.value)}
+                    className="w-full bg-[#f4f3f9] border border-outline-variant rounded-lg p-2.5 font-semibold text-primary focus:outline-none"
+                  >
+                    <option value="" disabled>Selecione o SKU...</option>
+                    {dbSKUs.map(sku => (
+                      <option key={sku.id} value={sku.id}>
+                        {sku.codigo}{sku.comprimento_mm ? ` (${sku.comprimento_mm}mm)` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-[#74777f] uppercase mb-1">Quantidade Planejada</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={newOrderQty}
+                    onChange={(e) => setNewOrderQty(e.target.value)}
+                    className="w-full bg-[#f4f3f9] border border-outline-variant rounded-lg p-2.5 font-bold text-primary focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-outline-variant">
+              <button
+                type="button"
+                onClick={() => setIsAddOrderModalOpen(false)}
+                className="bg-[#f4f3f9] hover:bg-[#e4e3e9] text-primary font-bold px-4 py-2.5 rounded-lg text-xs cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="bg-[#002046] hover:bg-[#1b365d] text-white font-bold px-4 py-2.5 rounded-lg text-xs cursor-pointer"
+              >
+                Gravar Pedido Geral
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

@@ -238,8 +238,8 @@ export default function DashboardScreen({
 
     if (supData) {
       setHomologatedSuppliers(supData as any);
-      if (supData.length > 0 && supData[0].fornecedores) {
-        setSelectedSupplierName(supData[0].fornecedores.nome);
+      if (supData.length > 0 && (supData[0] as any).fornecedores) {
+        setSelectedSupplierName((supData[0] as any).fornecedores.nome);
       } else {
         setSelectedSupplierName('');
       }

@@ -18,75 +18,18 @@ import {
   Package, 
   Award
 } from 'lucide-react';
+import { createClient } from '../utils/supabase/client';
 
 interface MateriasPrimasProps {
   suppliers: Supplier[];
   triggerAddNew?: number;
 }
 
-const INITIAL_MATERIALS: RawMaterial[] = [
-  {
-    id: "MP-001",
-    description: "Resina PVC Flexível Cristal 70 ShA",
-    purchaseUnit: "Kg",
-    supplierId: "SUP-004", // Polímeros Norte Ltda.
-    lastPurchaseDate: "2026-06-15",
-    lastPurchasePrice: 12.50,
-    lastPurchaseQty: 5000,
-    currentStock: 12500,
-    supplierRankings: [
-      { supplierId: "SUP-004", averagePrice: 12.40, punctualityRating: 98, qualityRating: 99 },
-      { supplierId: "SUP-002", averagePrice: 13.10, punctualityRating: 90, qualityRating: 92 }
-    ]
-  },
-  {
-    id: "MP-002",
-    description: "Chapa de Aço Carbono 1020 - 3mm",
-    purchaseUnit: "Kg",
-    supplierId: "SUP-001", // SteelTech Soluções Metálicas
-    lastPurchaseDate: "2026-05-20",
-    lastPurchasePrice: 8.90,
-    lastPurchaseQty: 1500,
-    currentStock: 850,
-    supplierRankings: [
-      { supplierId: "SUP-001", averagePrice: 8.85, punctualityRating: 95, qualityRating: 96 },
-      { supplierId: "SUP-002", averagePrice: 9.20, punctualityRating: 92, qualityRating: 94 }
-    ]
-  },
-  {
-    id: "MP-003",
-    description: "Perfil Rígido de PVC Cinza Industrial",
-    purchaseUnit: "Metro",
-    supplierId: "SUP-002", // Metalúrgica Precision S.A.
-    lastPurchaseDate: "2026-06-02",
-    lastPurchasePrice: 4.20,
-    lastPurchaseQty: 2000,
-    currentStock: 4200,
-    supplierRankings: [
-      { supplierId: "SUP-002", averagePrice: 4.15, punctualityRating: 92, qualityRating: 93 },
-      { supplierId: "SUP-004", averagePrice: 4.35, punctualityRating: 96, qualityRating: 95 }
-    ]
-  }
-];
-
 export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPrimasProps) {
-  useEffect(() => {
-    if (triggerAddNew !== undefined && triggerAddNew > 0) {
-      handleStartAddNew();
-    }
-  }, [triggerAddNew]);
+  const supabase = createClient();
 
-  const [materials, setMaterials] = useState<RawMaterial[]>(() => {
-    const saved = localStorage.getItem('helpe_raw_materials');
-    return saved ? JSON.parse(saved) : INITIAL_MATERIALS;
-  });
-
-  const [selectedMaterialId, setSelectedMaterialId] = useState<string>(() => {
-    const saved = localStorage.getItem('helpe_raw_materials');
-    const list = saved ? JSON.parse(saved) : INITIAL_MATERIALS;
-    return list.length > 0 ? list[0].id : '';
-  });
-
+  const [materials, setMaterials] = useState<RawMaterial[]>([]);
+  const [selectedMaterialId, setSelectedMaterialId] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -116,10 +59,48 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
     qualityRating: 90
   });
 
-  // Save to local storage on change
+  // Fetch from Database
+  const fetchMaterials = async () => {
+    const { data: dbInsumos } = await supabase
+      .from('insumos')
+      .select('*')
+      .order('nome');
+
+    if (dbInsumos) {
+      const mapped = dbInsumos.map(ins => {
+        const meta = ins.metadados || {};
+        return {
+          id: meta.codigo || ins.nome.substring(0, 6).toUpperCase(),
+          realId: ins.id,
+          description: ins.nome,
+          purchaseUnit: ins.unidade_medida as 'Kg' | 'Litro' | 'Metro',
+          supplierId: meta.fornecedor_id || '',
+          lastPurchaseDate: meta.last_purchase_date || '',
+          lastPurchasePrice: Number(meta.last_purchase_price) || 0,
+          lastPurchaseQty: Number(meta.last_purchase_qty) || 0,
+          currentStock: Number(ins.estoque_atual) || 0,
+          supplierRankings: meta.rankings || []
+        };
+      });
+      setMaterials(mapped);
+      if (mapped.length > 0) {
+        setSelectedMaterialId(prev => {
+          if (mapped.some(m => m.id === prev)) return prev;
+          return mapped[0].id;
+        });
+      }
+    }
+  };
+
   useEffect(() => {
-    localStorage.setItem('helpe_raw_materials', JSON.stringify(materials));
-  }, [materials]);
+    fetchMaterials();
+  }, []);
+
+  useEffect(() => {
+    if (triggerAddNew !== undefined && triggerAddNew > 0) {
+      handleStartAddNew();
+    }
+  }, [triggerAddNew]);
 
   // Set selected item to edit form
   const currentMaterial = materials.find(m => m.id === selectedMaterialId);
@@ -186,38 +167,56 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
     setIsAddingNew(true);
   };
 
-  const handleCreateMaterial = (e: React.FormEvent) => {
+  const handleCreateMaterial = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMat.id || !newMat.description || !newMat.supplierId) {
       alert('Por favor, preencha o Código, Descrição e Fornecedor Principal.');
       return;
     }
 
-    // Check code duplication
     if (materials.some(m => m.id === newMat.id)) {
       alert(`Já existe uma matéria-prima cadastrada com o código ${newMat.id}.`);
       return;
     }
 
-    const created: RawMaterial = {
-      id: newMat.id,
-      description: newMat.description,
-      purchaseUnit: newMat.purchaseUnit as 'Kg' | 'Litro' | 'Metro',
-      supplierId: newMat.supplierId,
-      lastPurchaseDate: newMat.lastPurchaseDate || '',
-      lastPurchasePrice: Number(newMat.lastPurchasePrice) || 0,
-      lastPurchaseQty: Number(newMat.lastPurchaseQty) || 0,
-      currentStock: Number(newMat.currentStock) || 0,
-      supplierRankings: []
-    };
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-    const updatedList = [...materials, created];
-    setMaterials(updatedList);
-    setSelectedMaterialId(created.id);
-    setIsAddingNew(false);
+    const { data: profile } = await supabase.from('usuarios').select('empresa_id').eq('id', user.id).single();
+    const empresaId = profile?.empresa_id;
+    if (!empresaId) return;
+
+    const isSteel = newMat.description.toLowerCase().includes('aço') || newMat.description.toLowerCase().includes('chapa');
+    const category = isSteel ? 'ACO' : 'QUIMICO';
+
+    const { error } = await supabase
+      .from('insumos')
+      .insert({
+        empresa_id: empresaId,
+        nome: newMat.description,
+        categoria: category,
+        unidade_medida: newMat.purchaseUnit,
+        estoque_atual: Number(newMat.currentStock) || 0,
+        metadados: {
+          codigo: newMat.id,
+          fornecedor_id: newMat.supplierId,
+          last_purchase_date: newMat.lastPurchaseDate || '',
+          last_purchase_price: Number(newMat.lastPurchasePrice) || 0,
+          last_purchase_qty: Number(newMat.lastPurchaseQty) || 0,
+          rankings: []
+        }
+      });
+
+    if (error) {
+      alert(`Erro ao cadastrar matéria-prima: ${error.message}`);
+    } else {
+      setIsAddingNew(false);
+      await fetchMaterials();
+      setSelectedMaterialId(newMat.id || '');
+    }
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editForm) return;
 
@@ -226,35 +225,70 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
       return;
     }
 
-    const updatedList = materials.map(m => m.id === editForm.id ? editForm : m);
-    setMaterials(updatedList);
-    setIsEditing(false);
+    const original = materials.find(m => m.id === editForm.id);
+    if (!original || !(original as any).realId) return;
+
+    const isSteel = editForm.description.toLowerCase().includes('aço') || editForm.description.toLowerCase().includes('chapa');
+    const category = isSteel ? 'ACO' : 'QUIMICO';
+
+    const { error } = await supabase
+      .from('insumos')
+      .update({
+        nome: editForm.description,
+        categoria: category,
+        unidade_medida: editForm.purchaseUnit,
+        estoque_atual: Number(editForm.currentStock) || 0,
+        metadados: {
+          codigo: editForm.id,
+          fornecedor_id: editForm.supplierId,
+          last_purchase_date: editForm.lastPurchaseDate || '',
+          last_purchase_price: Number(editForm.lastPurchasePrice) || 0,
+          last_purchase_qty: Number(editForm.lastPurchaseQty) || 0,
+          rankings: editForm.supplierRankings || []
+        }
+      })
+      .eq('id', (original as any).realId);
+
+    if (error) {
+      alert(`Erro ao atualizar insumo: ${error.message}`);
+    } else {
+      setIsEditing(false);
+      await fetchMaterials();
+    }
   };
 
-  const handleDeleteMaterial = (id: string) => {
+  const handleDeleteMaterial = async (id: string) => {
     if (confirm('Deseja realmente excluir esta matéria-prima?')) {
-      const updatedList = materials.filter(m => m.id !== id);
-      setMaterials(updatedList);
-      if (selectedMaterialId === id && updatedList.length > 0) {
-        setSelectedMaterialId(updatedList[0].id);
-      } else if (updatedList.length === 0) {
-        setSelectedMaterialId('');
+      const original = materials.find(m => m.id === id);
+      if (!original || !(original as any).realId) return;
+
+      const { error } = await supabase
+        .from('insumos')
+        .delete()
+        .eq('id', (original as any).realId);
+
+      if (error) {
+        alert(`Erro ao excluir insumo: ${error.message}`);
+      } else {
+        await fetchMaterials();
       }
     }
   };
 
   // Supplier Rankings Sub-Form Actions
-  const handleAddRanking = (e: React.FormEvent) => {
+  const handleAddRanking = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentMaterial || !newRanking.supplierId) return;
 
-    // Check if supplier ranking already exists
+    const original = currentMaterial;
+    if (!original || !(original as any).realId) return;
+
     if (currentMaterial.supplierRankings.some(r => r.supplierId === newRanking.supplierId)) {
       alert('Já existe um ranking cadastrado para este fornecedor nesta matéria-prima.');
       return;
     }
 
-    const added: RawMaterialSupplierRating = {
+    const added = {
       supplierId: newRanking.supplierId,
       averagePrice: Number(newRanking.averagePrice) || 0,
       punctualityRating: Number(newRanking.punctualityRating) || 90,
@@ -262,37 +296,64 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
     };
 
     const updatedRankings = [...currentMaterial.supplierRankings, added];
-    
-    // Sort rankings by lowest average price or highest quality
     updatedRankings.sort((a, b) => a.averagePrice - b.averagePrice);
 
-    const updatedMaterial: RawMaterial = {
-      ...currentMaterial,
-      supplierRankings: updatedRankings
-    };
+    const { error } = await supabase
+      .from('insumos')
+      .update({
+        metadados: {
+          codigo: currentMaterial.id,
+          fornecedor_id: currentMaterial.supplierId,
+          last_purchase_date: currentMaterial.lastPurchaseDate || '',
+          last_purchase_price: Number(currentMaterial.lastPurchasePrice) || 0,
+          last_purchase_qty: Number(currentMaterial.lastPurchaseQty) || 0,
+          rankings: updatedRankings
+        }
+      })
+      .eq('id', (original as any).realId);
 
-    setMaterials(materials.map(m => m.id === currentMaterial.id ? updatedMaterial : m));
-    setIsRankingModalOpen(false);
-    
-    // Reset form
-    setNewRanking({
-      supplierId: '',
-      averagePrice: 0,
-      punctualityRating: 90,
-      qualityRating: 90
-    });
+    if (error) {
+      alert(`Erro ao salvar ranking: ${error.message}`);
+    } else {
+      setIsRankingModalOpen(false);
+      setNewRanking({
+        supplierId: '',
+        averagePrice: 0,
+        punctualityRating: 90,
+        qualityRating: 90
+      });
+      await fetchMaterials();
+    }
   };
 
-  const handleDeleteRanking = (supplierId: string) => {
+  const handleDeleteRanking = async (supplierId: string) => {
     if (!currentMaterial) return;
 
     if (confirm('Deseja remover este fornecedor do ranking desta matéria-prima?')) {
+      const original = currentMaterial;
+      if (!original || !(original as any).realId) return;
+
       const updatedRankings = currentMaterial.supplierRankings.filter(r => r.supplierId !== supplierId);
-      const updatedMaterial: RawMaterial = {
-        ...currentMaterial,
-        supplierRankings: updatedRankings
-      };
-      setMaterials(materials.map(m => m.id === currentMaterial.id ? updatedMaterial : m));
+
+      const { error } = await supabase
+        .from('insumos')
+        .update({
+          metadados: {
+            codigo: currentMaterial.id,
+            fornecedor_id: currentMaterial.supplierId,
+            last_purchase_date: currentMaterial.lastPurchaseDate || '',
+            last_purchase_price: Number(currentMaterial.lastPurchasePrice) || 0,
+            last_purchase_qty: Number(currentMaterial.lastPurchaseQty) || 0,
+            rankings: updatedRankings
+          }
+        })
+        .eq('id', (original as any).realId);
+
+      if (error) {
+        alert(`Erro ao remover ranking: ${error.message}`);
+      } else {
+        await fetchMaterials();
+      }
     }
   };
 

@@ -138,6 +138,7 @@ export interface Employee {
 
   // Checklist Qualities
   qualities: EmployeeQualities;
+  customId?: string;
 }
 
 export interface RawMaterialSupplierRating {

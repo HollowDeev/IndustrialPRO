@@ -84,7 +84,7 @@ export async function POST(request: Request) {
 
     // 3. Processar cada Ordem de Produção (item do pedido)
     for (const op of (pedido.ordens_producao || [])) {
-      const sku = op.skus
+      const sku = op.skus as any
       if (!sku) continue
       
       const familia = sku.familias_produto
