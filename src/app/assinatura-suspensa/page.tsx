@@ -24,12 +24,12 @@ export default function AssinaturaSuspensaPage() {
         </div>
 
         <div className="text-center mb-6">
-          <h2 className="text-lg font-extrabold text-[#93000a] tracking-tight">Acesso Suspenso</h2>
+          <h2 className="text-lg font-extrabold text-[#93000a] tracking-tight">Acesso Indisponível</h2>
           <p className="text-sm text-[#74777f] mt-2 leading-relaxed">
-            A assinatura da sua empresa encontra-se suspensa por pendências administrativas.
+            O acesso da sua empresa ao servidor foi temporariamente suspenso por motivos técnicos.
           </p>
           <p className="text-xs text-[#74777f] mt-1">
-            Por favor, entre em contato com a diretoria do HELPE para regularizar seu acesso.
+            Nossa equipe está à disposição para ajudar. Por favor, entre em contato com o suporte técnico para regularizar seu acesso rapidamente.
           </p>
         </div>
 

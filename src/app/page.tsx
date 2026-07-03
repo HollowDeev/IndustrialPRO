@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Supplier, Order, DailyProductionSetup } from '../types';
 import SideNavBar from '../components/SideNavBar';
 import TopAppBar from '../components/TopAppBar';
@@ -22,6 +23,7 @@ import { createClient } from '../utils/supabase/client';
 import { useToast } from '../contexts/ToastContext';
 
 export default function Home() {
+  const router = useRouter();
   const supabase = createClient();
   
   const { addToast } = useToast();
@@ -177,9 +179,14 @@ export default function Home() {
       if (user) {
         const { data: profile } = await supabase
           .from('usuarios')
-          .select('nome, cargo')
+          .select('nome, cargo, is_super_admin')
           .eq('id', user.id)
           .maybeSingle();
+
+        if (profile?.is_super_admin) {
+          router.push('/painel-gestor-helpe');
+          return;
+        }
 
         if (profile) {
           setUserProfile(profile);

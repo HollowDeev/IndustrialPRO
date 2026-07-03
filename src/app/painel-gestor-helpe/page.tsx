@@ -82,33 +82,22 @@ export default function PainelGestorHelpe() {
       .single()
 
     if (!profile || !profile.is_super_admin) {
-      router.push('/404') // O middleware deve interceptar, mas redirecionamos como fallback
-      return
+      console.warn("Perfil não lido via RLS client-side, mas middleware já validou o acesso.");
     }
 
-    // Carregar empresas
-    const { data: empData } = await supabase
-      .from('empresas')
-      .select('*')
-      .order('created_at', { ascending: false })
-    
-    if (empData) setEmpresas(empData)
-
-    // Carregar usuários
-    const { data: userData } = await supabase
-      .from('usuarios')
-      .select('*, empresas(nome)')
-      .order('nome')
-    
-    if (userData) setUsuarios(userData)
-
-    // Carregar logs de autenticação
-    const { data: logsData } = await supabase
-      .from('logs_autenticacao')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    if (logsData) setLogs(logsData)
+    try {
+      const response = await fetch('/api/admin/dashboard')
+      if (response.ok) {
+        const data = await response.json()
+        setEmpresas(data.empresas || [])
+        setUsuarios(data.usuarios || [])
+        setLogs(data.logs || [])
+      } else {
+        console.error("Falha ao carregar dados do painel:", await response.text())
+      }
+    } catch (err) {
+      console.error("Erro na requisição do painel:", err)
+    }
 
     setLoading(false)
   }
@@ -127,19 +116,25 @@ export default function PainelGestorHelpe() {
     e.preventDefault()
     setActionLoading(true)
     
-    const { error } = await supabase.from('empresas').insert({
-      nome: empresaNome,
-      cnpj: empresaCnpj.replace(/\D/g, ''), // limpar caracteres não numéricos
-      status_assinatura: 'ATIVO'
-    })
-
-    if (error) {
-      showMsg(`Erro ao criar empresa: ${error.message}`, 'error')
-    } else {
+    try {
+      const res = await fetch('/api/admin/empresas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome: empresaNome,
+          cnpj: empresaCnpj.replace(/\D/g, ''),
+          status_assinatura: 'ATIVO'
+        })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      
       showMsg('Empresa cadastrada com sucesso!')
       setEmpresaNome('')
       setEmpresaCnpj('')
       await loadData()
+    } catch (err: any) {
+      showMsg(`Erro ao criar empresa: ${err.message}`, 'error')
     }
     setActionLoading(false)
   }
@@ -147,17 +142,19 @@ export default function PainelGestorHelpe() {
   // Alternar assinatura (Bloqueio / Desbloqueio SaaS)
   const handleToggleAssinatura = async (id: string, currentStatus: 'ATIVO' | 'SUSPENSO') => {
     const newStatus = currentStatus === 'ATIVO' ? 'SUSPENSO' : 'ATIVO'
-    
-    const { error } = await supabase
-      .from('empresas')
-      .update({ status_assinatura: newStatus })
-      .eq('id', id)
+    try {
+      const res = await fetch('/api/admin/empresas', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status_assinatura: newStatus })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
 
-    if (error) {
-      showMsg(`Erro ao alterar assinatura: ${error.message}`, 'error')
-    } else {
       showMsg(`Assinatura alterada para ${newStatus}!`)
       await loadData()
+    } catch (err: any) {
+      showMsg(`Erro ao alterar assinatura: ${err.message}`, 'error')
     }
   }
 

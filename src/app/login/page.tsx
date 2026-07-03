@@ -41,21 +41,10 @@ export default function LoginPage() {
         return
       }
 
-      const sessionClient = createClient()
-      const { data: { user } } = await sessionClient.auth.getUser()
-
-      if (user) {
-        const { data: profile } = await sessionClient
-          .from('usuarios')
-          .select('is_super_admin')
-          .eq('id', user.id)
-          .single()
-
-        if (profile?.is_super_admin) {
-          router.push('/painel-gestor-helpe')
-        } else {
-          router.push('/')
-        }
+      if (data.is_super_admin) {
+        router.push('/painel-gestor-helpe')
+      } else {
+        router.push('/')
       }
     } catch (err) {
       setErrorMsg('Ocorreu um erro ao tentar realizar o login.')

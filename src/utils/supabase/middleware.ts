@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
@@ -50,12 +51,18 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.rewrite(new URL('/404', request.url))
     }
 
-    // Buscar perfil para verificar se é de fato Super Admin
-    const { data: profile, error: dbError } = await supabase
+    // Use Admin Client to bypass RLS and guarantee we can read the profile
+    const adminClient = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { persistSession: false, autoRefreshToken: false } }
+    )
+
+    const { data: profile, error: dbError } = await adminClient
       .from('usuarios')
       .select('is_super_admin')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
     if (dbError) {
       console.error(`[Middleware] Erro ao buscar perfil no banco: ${dbError.message}`)
@@ -77,17 +84,43 @@ export async function updateSession(request: NextRequest) {
   if (publicRoutes.includes(pathname)) {
     // Se estiver logado e tentar ir para o login, redireciona para a home
     if (user && pathname === '/login') {
-      const { data: profile } = await supabase
+      const adminClient = createSupabaseClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        { auth: { persistSession: false, autoRefreshToken: false } }
+      )
+      const { data: profile } = await adminClient
         .from('usuarios')
         .select('is_super_admin')
         .eq('id', user.id)
-        .single()
+        .maybeSingle()
       
       if (profile?.is_super_admin) {
         return NextResponse.redirect(new URL('/painel-gestor-helpe', request.url))
       }
       return NextResponse.redirect(new URL('/', request.url))
     }
+    // Se estiver logado e tentar ir para assinatura-suspensa, verificamos se ele realmente está suspenso
+    if (user && pathname === '/assinatura-suspensa') {
+      const { data: profile } = await supabase
+        .from('usuarios')
+        .select('empresa_id')
+        .eq('id', user.id)
+        .single()
+
+      if (profile?.empresa_id) {
+        const { data: empresa } = await supabase
+          .from('empresas')
+          .select('status_assinatura')
+          .eq('id', profile.empresa_id)
+          .single()
+
+        if (empresa?.status_assinatura === 'ATIVO') {
+          return NextResponse.redirect(new URL('/', request.url))
+        }
+      }
+    }
+
     return supabaseResponse
   }
 

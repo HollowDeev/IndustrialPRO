@@ -90,5 +90,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 401 })
   }
 
-  return NextResponse.json({ success: true, user: data.user })
+  let is_super_admin = false;
+  try {
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    if (serviceRoleKey && supabaseUrl) {
+      const adminClient = createSupabaseClient(supabaseUrl, serviceRoleKey, {
+        auth: { autoRefreshToken: false, persistSession: false }
+      })
+      const { data: profile } = await adminClient
+        .from('usuarios')
+        .select('is_super_admin')
+        .eq('id', data.user.id)
+        .single()
+      
+      if (profile) {
+        is_super_admin = profile.is_super_admin;
+      }
+    }
+  } catch (err) {
+    console.error('Erro ao verificar perfil do admin:', err);
+  }
+
+  return NextResponse.json({ 
+    success: true, 
+    user: data.user, 
+    is_super_admin: is_super_admin 
+  })
 }
