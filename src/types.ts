@@ -38,9 +38,10 @@ export interface SupplierDocument {
 
 export interface SupplierHistoryOP {
   id: string;
-  orderDate: string;
-  items: string;
-  totalValue: number;
+  date: string;
+  item: string;
+  amount: string;
+  value: string;
   status: string;
 }
 

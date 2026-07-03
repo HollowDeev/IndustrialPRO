@@ -7,7 +7,7 @@ export const INITIAL_ORDERS: Order[] = [
     location: "São Paulo - Polo Industrial",
     emissionDate: "12 Out 2023",
     deliveryDate: "2023-11-25",
-    priority: "Alta",
+
     totalProduced: 6450,
     totalVolume: 10000,
     efficiency: 94.2,
@@ -29,7 +29,7 @@ export const INITIAL_ORDERS: Order[] = [
     location: "Campinas - SP",
     emissionDate: "05 Out 2023",
     deliveryDate: "2023-11-10",
-    priority: "Média",
+
     totalProduced: 4210,
     totalVolume: 4500,
     efficiency: 98,
@@ -44,7 +44,7 @@ export const INITIAL_ORDERS: Order[] = [
     location: "Porto Alegre - RS",
     emissionDate: "10 Out 2023",
     deliveryDate: "2023-11-20",
-    priority: "Alta",
+
     totalProduced: 8240,
     totalVolume: 16000,
     efficiency: 85,
@@ -79,9 +79,9 @@ export const INITIAL_SUPPLIERS: Supplier[] = [
       { id: "doc-3", name: "Licença Ambiental (CETESB)", type: "Operacional", issueDate: "20/01/2022", expiryDate: "20/01/2023", status: "Expirado" }
     ],
     history: [
-      { id: "#OP-88291", orderDate: "12 Nov, 2023", items: "Chapa de Aço 1020 (500kg), Perfil U (20un)", totalValue: 14500, status: "Em Produção" },
-      { id: "#OP-87910", orderDate: "28 Out, 2023", items: "Parafusos M12 (5000un), Arruelas (5000un)", totalValue: 2340, status: "Finalizado" },
-      { id: "#OP-87402", orderDate: "15 Out, 2023", items: "Tubo Redondo 2\" (100m), Joelho 90º (50un)", totalValue: 8900, status: "Finalizado" }
+      { id: "#OP-88291", date: "12 Nov, 2023", item: "Chapa de Aço 1020 (500kg), Perfil U (20un)", amount: "520 unid", value: "R$ 14.500,00", status: "Em Produção" },
+      { id: "#OP-87910", date: "28 Out, 2023", item: "Parafusos M12 (5000un), Arruelas (5000un)", amount: "10000 unid", value: "R$ 2.340,00", status: "Finalizado" },
+      { id: "#OP-87402", date: "15 Out, 2023", item: "Tubo Redondo 2\" (100m), Joelho 90º (50un)", amount: "150 unid", value: "R$ 8.900,00", status: "Finalizado" }
     ]
   },
   {

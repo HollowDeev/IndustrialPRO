@@ -235,7 +235,7 @@ const FichaAcompanhamentoProducaoPDF = ({ order }: FichaProps) => {
         <Text style={styles.sectionTitle}>6. Reprogramacao tecnica</Text>
         <View style={styles.table}>
           <View style={styles.tableRow}><Col width="50%" isHeader>Item de controle</Col><Col width="50%" isHeader isLast>Registro corrigido...</Col></View>
-          <View style={styles.tableRow}><Col width="50%">Prioridade inicial</Col><Col width="50%" isLast>{order.priority}</Col></View>
+          <View style={styles.tableRow}><Col width="50%">Setup Inicial</Col><Col width="50%" isLast>{order.deliveryDate}</Col></View>
           <View style={styles.tableRow}><Col width="50%" isLastRow>Transição operacional</Col><Col width="50%" isLast isLastRow>Setup sem paradas longas</Col></View>
         </View>
         

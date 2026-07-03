@@ -139,12 +139,7 @@ export default function AberturaProducao({ orders, onStartProduction }: Abertura
                     <span className="text-outline">Cliente:</span>
                     <p className="font-bold text-primary truncate">{selectedOrder.clientName}</p>
                   </div>
-                  <div>
-                    <span className="text-outline">Prioridade:</span>
-                    <p className={`font-semibold ${selectedOrder.priority === 'Alta' ? 'text-secondary font-bold' : 'text-primary'}`}>
-                      {selectedOrder.priority}
-                    </p>
-                  </div>
+
                   <div>
                     <span className="text-outline">Meta Volume:</span>
                     <p className="font-semibold text-primary">{selectedOrder.totalVolume.toLocaleString()} peças</p>

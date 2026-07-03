@@ -368,7 +368,7 @@ export default function EstoqueScreen() {
                       <span className="font-bold">{ent.insumos?.nome}</span>
                       <span className="block text-[10px] uppercase text-outline">{ent.insumos?.categoria}</span>
                     </td>
-                    <td className="px-6 py-4 font-medium text-on-surface-variant">{ent.fornecedores?.nome}</td>
+                    <td className="px-6 py-4 font-medium text-on-surface-variant">{ent.fornecedores?.razao_social}</td>
                     <td className="px-6 py-4 font-bold">{ent.quantidade} <span className="text-xs text-outline">{ent.insumos?.unidade_medida}</span></td>
                     <td className="px-6 py-4 text-right">
                       <button 
@@ -410,7 +410,7 @@ export default function EstoqueScreen() {
                     </td>
                     <td className="px-6 py-4 font-medium text-on-surface-variant">Usuário Autenticado</td>
                     <td className="px-6 py-4 font-bold text-on-surface">{ent.insumos?.nome}</td>
-                    <td className="px-6 py-4 font-medium">{ent.fornecedores?.nome}</td>
+                    <td className="px-6 py-4 font-medium">{ent.fornecedores?.razao_social}</td>
                     <td className="px-6 py-4 font-bold">{ent.quantidade} <span className="text-xs text-outline">{ent.insumos?.unidade_medida}</span><br/><span className="text-[10px] text-outline font-normal">@{formatCurrency(ent.preco_unitario)}</span></td>
                   </tr>
                 )
