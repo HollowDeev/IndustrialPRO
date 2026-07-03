@@ -171,6 +171,13 @@ export default function Funcionarios({
     return `${h}h ${m > 0 ? `${m}m` : '00m'}`;
   };
 
+  const formatCEP = (value: string) => {
+    let val = value.replace(/\D/g, '');
+    if (val.length > 8) val = val.substring(0, 8);
+    if (val.length > 5) val = val.substring(0, 5) + '-' + val.substring(5);
+    return val;
+  };
+
   const filteredEmployees = employees.filter(e => {
     const fullName = `${e.firstName} ${e.lastName}`.toLowerCase();
     const query = (externalSearchQuery || searchTerm || '').toLowerCase();
@@ -620,7 +627,7 @@ export default function Funcionarios({
                     <input
                       type="text"
                       value={newEmp.zipCode}
-                      onChange={(e) => setNewEmp({ ...newEmp, zipCode: e.target.value })}
+                      onChange={(e) => setNewEmp({ ...newEmp, zipCode: formatCEP(e.target.value) })}
                       placeholder="Ex: 09750-000"
                       className="w-full text-xs bg-surface-bright border border-outline-variant rounded-lg p-2.5 text-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     />
@@ -713,38 +720,6 @@ export default function Funcionarios({
                 </div>
               </div>
 
-              {/* Checklist pre-creation options */}
-              <div className="space-y-3 pt-4 border-t border-outline-variant/60">
-                <div className="flex justify-between items-center">
-                  <h4 className="text-xs font-black text-secondary uppercase tracking-wider">Qualidades do Funcionário</h4>
-                  <span className="text-[10px] text-outline">Clique para selecionar ON/OFF</span>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {QUALITY_LABELS.map(({ key, label }) => {
-                    const isChecked = !!newEmp.qualities?.[key];
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => handleToggleQuality(key)}
-                        className={`flex items-center gap-3 p-3 rounded-xl border text-left text-xs transition-all ${
-                          isChecked 
-                            ? 'bg-secondary/10 border-secondary text-on-secondary-container font-medium' 
-                            : 'bg-surface-bright hover:bg-surface-container-low border-outline-variant/40'
-                        }`}
-                      >
-                        {isChecked ? (
-                          <CheckSquare size={16} className="text-secondary shrink-0" />
-                        ) : (
-                          <Square size={16} className="text-outline shrink-0" />
-                        )}
-                        <span>{label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-outline-variant">
                 <button
@@ -910,7 +885,7 @@ export default function Funcionarios({
                         <input
                           type="text"
                           value={editForm.zipCode}
-                          onChange={(e) => setEditForm({ ...editForm, zipCode: e.target.value })}
+                          onChange={(e) => setEditForm({ ...editForm, zipCode: formatCEP(e.target.value) })}
                           className="w-full bg-surface-bright border border-outline-variant rounded-lg p-2 focus:outline-none"
                         />
                       </div>
@@ -1095,42 +1070,6 @@ export default function Funcionarios({
 
               </div>
 
-              {/* ACTIVE QUALITIES BADGES AND CHECKLIST BUTTON */}
-              <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant shadow-xs space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-surface-container pb-2">
-                  <h4 className="text-xs font-black text-secondary uppercase tracking-wider flex items-center gap-1.5">
-                    <Award size={14} className="text-secondary" />
-                    <span>Qualidades & Habilitações</span>
-                  </h4>
-                  <button
-                    onClick={() => setIsQualityModalOpen(true)}
-                    className="self-start text-[11px] font-black text-secondary-container hover:brightness-95 bg-on-secondary-container px-3 py-1.5 rounded-lg flex items-center gap-1"
-                  >
-                    <CheckSquare size={13} />
-                    ABRIR CHECKLIST (ON/OFF)
-                  </button>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {QUALITY_LABELS.some(({ key }) => currentEmployee.qualities[key]) ? (
-                    QUALITY_LABELS.map(({ key, label }) => {
-                      const hasQuality = currentEmployee.qualities[key];
-                      if (!hasQuality) return null;
-                      return (
-                        <span
-                          key={key}
-                          className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-primary-container text-on-primary-container border border-outline-variant/40"
-                        >
-                          <Check size={11} className="text-secondary" />
-                          {label}
-                        </span>
-                      );
-                    })
-                  ) : (
-                    <p className="text-xs text-outline italic">Nenhuma habilidade selecionada no checklist de qualidades.</p>
-                  )}
-                </div>
-              </div>
 
               {/* THIRD BLOCK: Histórico de Pontualidade */}
               <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant shadow-xs space-y-5">
@@ -1273,61 +1212,7 @@ export default function Funcionarios({
                 </div>
               </div>
 
-              {/* POPUP / MODAL: CHECKLIST DE QUALIDADES */}
-              {isQualityModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-fade-in">
-                  <div className="bg-surface-container-lowest border border-outline-variant w-full max-w-md rounded-2xl p-6 shadow-xl space-y-4">
-                    <div className="flex justify-between items-center border-b border-surface-container pb-3">
-                      <div className="flex items-center gap-2">
-                        <Award className="text-secondary" size={18} />
-                        <div>
-                          <h3 className="text-sm font-black text-primary uppercase">Qualidades do Funcionário</h3>
-                          <p className="text-[10px] text-outline">Marque ON/OFF para salvar imediatamente.</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setIsQualityModalOpen(false)}
-                        className="p-1.5 hover:bg-surface-container rounded-full text-outline hover:text-primary transition-colors"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
 
-                    <div className="space-y-2 py-2">
-                      {QUALITY_LABELS.map(({ key, label }) => {
-                        const isChecked = currentEmployee.qualities[key];
-                        return (
-                          <div
-                            key={key}
-                            onClick={() => handleToggleQuality(key)}
-                            className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all ${
-                              isChecked
-                                ? 'bg-secondary/15 border-secondary text-on-secondary-container'
-                                : 'bg-surface-bright hover:bg-surface-container border-outline-variant/50 text-outline'
-                            }`}
-                          >
-                            <span className={`text-xs ${isChecked ? 'font-bold text-primary' : ''}`}>{label}</span>
-                            <div className={`w-9 h-5 rounded-full p-0.5 transition-all duration-200 flex ${
-                              isChecked ? 'bg-secondary justify-end' : 'bg-outline-variant justify-start'
-                            }`}>
-                              <span className="w-4 h-4 rounded-full bg-white shadow-xs"></span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    <div className="flex justify-end pt-2 border-t border-surface-container">
-                      <button
-                        onClick={() => setIsQualityModalOpen(false)}
-                        className="bg-primary hover:brightness-110 text-white font-bold py-2 px-5 rounded-xl text-xs"
-                      >
-                        FECHAR
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
 
             </div>
           ) : (

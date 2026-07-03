@@ -15,12 +15,13 @@ import MateriasPrimas from '../components/MateriasPrimas';
 import FamiliasSkusScreen from '../components/FamiliasSkusScreen';
 import BOMScreen from '../components/BOMScreen';
 import ConfiguracoesScreen from '../components/ConfiguracoesScreen';
+import EstoqueScreen from '../components/EstoqueScreen';
 import { createClient } from '../utils/supabase/client';
 
 export default function Home() {
   const supabase = createClient();
   
-  // Screens: 'dashboard' | 'pedidos' | 'pedido-detail' | 'apontamento' | 'reprogramacao' | 'fornecedores' | 'familias-skus' | 'bom-formulas'
+  // Screens: 'dashboard' | 'estoque' | 'pedidos' | 'pedido-detail' | 'apontamento' | 'reprogramacao' | 'fornecedores' | 'familias-skus' | 'bom-formulas'
   const [currentScreen, setCurrentScreen] = useState<string>('dashboard');
   
   // App States
@@ -303,7 +304,7 @@ export default function Home() {
         nome: newSupplier.name,
         cnpj: newSupplier.cnpj,
         ie: newSupplier.IE,
-        categoria: newSupplier.categories[0],
+        categoria: newSupplier.categories,
         rating: newSupplier.rating,
         status: newSupplier.status,
         contato_nome: newSupplier.contact,
@@ -332,7 +333,7 @@ export default function Home() {
         nome: updatedSup.name,
         cnpj: updatedSup.cnpj,
         ie: updatedSup.IE,
-        categoria: updatedSup.categories[0],
+        categoria: updatedSup.categories,
         rating: updatedSup.rating,
         status: updatedSup.status,
         contato_nome: updatedSup.contact,
@@ -426,6 +427,9 @@ export default function Home() {
             />
           </div>
         );
+
+      case 'estoque':
+        return <EstoqueScreen />;
 
       case 'pedidos':
         return (

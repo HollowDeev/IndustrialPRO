@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Order, OrderLine } from '../types';
+import PDFExportButtons from './pdf/PDFExportButtons';
 
 interface PedidosDetailProps {
   order: Order;
@@ -206,6 +207,9 @@ export default function PedidosDetail({ order, onUpdateOrder, onBack }: PedidosD
           </div>
         </div>
       </div>
+
+      {/* PDF Export Section */}
+      <PDFExportButtons order={order} />
 
       {/* Grid containing adding tool + items list table */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

@@ -517,7 +517,7 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
                       <option value="" disabled>Selecione um fornecedor homologado...</option>
                       {suppliers.map(sup => (
                         <option key={sup.id} value={sup.id}>
-                          {sup.name} ({sup.id})
+                          {sup.name}
                         </option>
                       ))}
                     </select>
@@ -999,7 +999,7 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
                     .filter(s => !currentMaterial?.supplierRankings.some(r => r.supplierId === s.id))
                     .map(sup => (
                       <option key={sup.id} value={sup.id}>
-                        {sup.name} ({sup.id})
+                        {sup.name}
                       </option>
                     ))}
                 </select>

@@ -28,9 +28,16 @@ export default function Fornecedores({
   const [newContact, setNewContact] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newAddress, setNewAddress] = useState('');
-  const [newLimit, setNewLimit] = useState(250000);
-  const [newCategory, setNewCategory] = useState('Matéria-Prima');
+  const [newCategories, setNewCategories] = useState<string[]>([]);
   const [rating, setRating] = useState(90);
+
+  const formatCNPJ = (value: string) => {
+    const v = value.replace(/\D/g, '').slice(0, 14);
+    return v.replace(/^(\d{2})(\d)/, '$1.$2')
+            .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+            .replace(/\.(\d{3})(\d)/, '.$1/$2')
+            .replace(/(\d{4})(\d)/, '$1-$2');
+  };
 
   // Filter Categories
   const categoriesList = ['Todas', 'Matéria-Prima', 'Insumos', 'Serviços', 'Manutenção'];
@@ -53,8 +60,8 @@ export default function Fornecedores({
 
   const handleCreateSupplier = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newName.trim() || !newCnpj.trim()) {
-      alert('Por favor, preencha o Nome e CNPJ do Fornecedor!');
+    if (!newName.trim() || !newCnpj.trim() || newCategories.length === 0) {
+      alert('Por favor, preencha o Nome, CNPJ e selecione pelo menos uma Categoria!');
       return;
     }
 
@@ -63,14 +70,14 @@ export default function Fornecedores({
       name: newName,
       cnpj: newCnpj,
       IE: newIe || 'Isento',
-      categories: [newCategory],
+      categories: newCategories,
       rating: rating,
       status: 'Em Homologação',
       contact: newContact,
       contactEmail: newEmail,
       lastDelivery: 'Recém Cadastrado',
       address: newAddress,
-      limit: newLimit,
+      limit: 250000,
       logo: 'https://images.unsplash.com/photo-1516825425712-4014f3747596?w=150&auto=format&fit=crop&q=80&referrerpolicy=no-referrer',
       auditDate: new Date().toLocaleDateString('pt-BR'),
       paymentTerm: '30 Dias',
@@ -91,6 +98,7 @@ export default function Fornecedores({
     setNewContact('');
     setNewEmail('');
     setNewAddress('');
+    setNewCategories([]);
     setRating(90);
   };
 
@@ -162,7 +170,8 @@ export default function Fornecedores({
                   required
                   placeholder="00.000.000/0001-00"
                   value={newCnpj}
-                  onChange={(e) => setNewCnpj(e.target.value)}
+                  onChange={(e) => setNewCnpj(formatCNPJ(e.target.value))}
+                  maxLength={18}
                   className="w-full bg-surface-container-low text-primary border border-outline/20 rounded-lg p-2.5 text-xs focus:border-secondary outline-hidden font-semibold"
                 />
               </div>
@@ -201,17 +210,33 @@ export default function Fornecedores({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-primary mb-1.5 uppercase tracking-wider">Categoria Fornecimento</label>
-                <select
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value)}
-                  className="w-full bg-surface-container-low text-primary border border-outline/20 rounded-lg p-2.5 text-xs focus:border-secondary outline-hidden font-semibold"
-                >
-                  <option value="Matéria-Prima">Matéria-Prima (Polímeros/Aço)</option>
-                  <option value="Insumos">Insumos (Filtros/Pigmentos)</option>
-                  <option value="Serviços">Serviços (Logística/Instalação)</option>
-                  <option value="Manutenção">Manutenção (Retífica/Sobressalentes)</option>
-                </select>
+                <label className="block text-xs font-bold text-primary mb-1.5 uppercase tracking-wider">Categoria Fornecimento *</label>
+                <div className="flex gap-4 p-2.5 bg-surface-container-low border border-outline/20 rounded-lg">
+                  <label className="flex items-center gap-2 text-xs font-semibold text-primary cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="accent-secondary h-4 w-4"
+                      checked={newCategories.includes('Aço')}
+                      onChange={(e) => {
+                        if (e.target.checked) setNewCategories([...newCategories, 'Aço']);
+                        else setNewCategories(newCategories.filter(c => c !== 'Aço'));
+                      }}
+                    />
+                    Aço
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-semibold text-primary cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="accent-secondary h-4 w-4"
+                      checked={newCategories.includes('Químico (Blend)')}
+                      onChange={(e) => {
+                        if (e.target.checked) setNewCategories([...newCategories, 'Químico (Blend)']);
+                        else setNewCategories(newCategories.filter(c => c !== 'Químico (Blend)'));
+                      }}
+                    />
+                    Químico (Blend)
+                  </label>
+                </div>
               </div>
 
               <div className="md:col-span-2">
@@ -222,22 +247,6 @@ export default function Fornecedores({
                   value={newAddress}
                   onChange={(e) => setNewAddress(e.target.value)}
                   className="w-full bg-surface-container-low text-primary border border-outline/20 rounded-lg p-2.5 text-xs focus:border-secondary outline-hidden"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <div className="flex justify-between text-xs font-bold text-primary mb-1.5">
-                  <span className="uppercase tracking-wider">Limite Financeiro Máximo Cadastral</span>
-                  <span className="text-secondary font-extrabold">R$ {newLimit.toLocaleString()}</span>
-                </div>
-                <input
-                  type="range"
-                  min="50000"
-                  max="1000000"
-                  step="50000"
-                  value={newLimit}
-                  onChange={(e) => setNewLimit(Number(e.target.value))}
-                  className="w-full accent-secondary"
                 />
               </div>
             </div>
@@ -298,15 +307,21 @@ export default function Fornecedores({
                 {/* Status Tag */}
                 <div className="text-right">
                   <span className="text-[10px] text-outline font-bold uppercase tracking-wider block mb-1">Status Auditoria</span>
-                  <span className={`px-3 py-1.5 rounded-sm text-xs font-black shrink-0 ${
-                    selectedSupplier.status === 'Ativo'
-                      ? 'bg-tertiary-fixed text-on-tertiary-fixed'
-                      : selectedSupplier.status === 'Em Homologação'
-                        ? 'bg-secondary-container text-on-secondary-container'
-                        : 'bg-error-container text-on-error-container'
-                  }`}>
-                    {selectedSupplier.status.toUpperCase()}
-                  </span>
+                  <select 
+                    value={selectedSupplier.status} 
+                    onChange={(e) => onUpdateSupplier({ ...selectedSupplier, status: e.target.value as any })}
+                    className={`px-3 py-1.5 rounded-sm text-xs font-black cursor-pointer border-none outline-hidden ${
+                      selectedSupplier.status === 'Ativo'
+                        ? 'bg-tertiary-fixed text-on-tertiary-fixed'
+                        : selectedSupplier.status === 'Em Homologação'
+                          ? 'bg-secondary-container text-on-secondary-container'
+                          : 'bg-error-container text-on-error-container'
+                    }`}
+                  >
+                    <option value="Ativo" className="bg-white text-primary">ATIVO</option>
+                    <option value="Em Homologação" className="bg-white text-primary">EM HOMOLOGAÇÃO</option>
+                    <option value="Inativo" className="bg-white text-primary">INATIVO</option>
+                  </select>
                 </div>
 
                 {/* Rating score circle */}
@@ -321,7 +336,7 @@ export default function Fornecedores({
             </div>
 
             {/* Quick General metadata details */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 text-xs">
               <div>
                 <span className="text-outline font-medium">Contato Comercial</span>
                 <p className="font-bold text-primary mt-0.5">{selectedSupplier.contact}</p>
@@ -329,14 +344,6 @@ export default function Fornecedores({
               <div>
                 <span className="text-outline font-medium">E-mail</span>
                 <p className="font-bold text-primary mt-0.5 truncate">{selectedSupplier.contactEmail}</p>
-              </div>
-              <div>
-                <span className="text-outline font-medium">Limite Liberado</span>
-                <p className="font-extrabold text-secondary mt-0.5">R$ {selectedSupplier.limit.toLocaleString()}</p>
-              </div>
-              <div>
-                <span className="text-outline font-medium">Última Auditoria</span>
-                <p className="font-bold text-primary mt-0.5">{selectedSupplier.auditDate}</p>
               </div>
             </div>
 
@@ -370,43 +377,11 @@ export default function Fornecedores({
               </div>
 
               <div className="space-y-3">
-                {selectedSupplier.documents.length === 0 ? (
-                  <p className="text-xs text-outline p-4 text-center">Nenhum documento regulador anexado.</p>
-                ) : (
-                  selectedSupplier.documents.map(doc => (
-                    <div
-                      key={doc.id}
-                      className="p-3 bg-surface-bright border border-outline-variant/50 rounded-xl flex items-center justify-between text-xs hover:border-outline/50 transition-all"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined text-[20px] text-outline">description</span>
-                        <div>
-                          <p className="font-bold text-primary">{doc.name}</p>
-                          <p className="text-[10px] text-outline">Vence em: {doc.expiryDate} ({doc.type})</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        {/* Status Label */}
-                        <span className={`px-2 py-0.5 rounded-sm font-black text-[10px] ${
-                          doc.status === 'Válido' 
-                            ? 'bg-tertiary-fixed text-on-tertiary-fixed' 
-                            : 'bg-error-container text-on-error-container'
-                        }`}>
-                          {doc.status}
-                        </span>
-
-                        {/* Interactive toggle status button */}
-                        <button
-                          onClick={() => toggleDocumentStatus(doc.id)}
-                          className="bg-surface-container-low hover:bg-surface-container-high px-2.5 py-1.5 rounded-md font-bold text-[10px] cursor-pointer"
-                        >
-                          Alterar
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
+                <div className="p-6 bg-surface-bright border border-outline-variant/50 rounded-xl flex flex-col items-center justify-center text-center space-y-2">
+                  <span className="material-symbols-outlined text-[32px] text-outline-variant">construction</span>
+                  <p className="text-sm font-bold text-primary">Módulo em Desenvolvimento</p>
+                  <p className="text-xs text-outline max-w-xs">A gestão de documentação regulatória (ISO, licenças ambientais, contratos) será implementada em futuras atualizações.</p>
+                </div>
               </div>
             </div>
 

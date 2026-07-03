@@ -1,0 +1,1 @@
+ALTER TABLE public.fornecedores ALTER COLUMN cnpj TYPE varchar(18);

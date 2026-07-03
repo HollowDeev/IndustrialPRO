@@ -27,7 +27,7 @@ interface OP {
 interface Funcionario {
   id: string;
   nome: string;
-  role: string;
+  cargo: string;
 }
 
 interface ApontamentoScreenProps {
@@ -56,9 +56,11 @@ export default function ApontamentoScreen({ orders, onStartProduction }: Apontam
   const [qtdAprovada, setQtdAprovada] = useState('');
   const [refugoKg, setRefugoKg] = useState('0.00');
 
-  const showMsg = (text: string, type: 'success' | 'error' = 'success') => {
+  const showMsg = (text: string, type: 'success' | 'error' = 'success', persistent: boolean = false) => {
     setMsg({ text, type });
-    setTimeout(() => setMsg({ text: '', type: '' }), 4000);
+    if (!persistent) {
+      setTimeout(() => setMsg({ text: '', type: '' }), 4000);
+    }
   };
 
   // Carregar dados de OPs ativas e funcionários
@@ -92,7 +94,7 @@ export default function ApontamentoScreen({ orders, onStartProduction }: Apontam
       // Buscar Funcionários (como equipe de operadores)
       const { data: empsData } = await supabase
         .from('funcionarios')
-        .select('id, nome, role')
+        .select('id, nome, cargo')
         .order('nome');
 
       if (opsData) {
@@ -197,7 +199,7 @@ export default function ApontamentoScreen({ orders, onStartProduction }: Apontam
       });
 
       if (error) {
-        showMsg(`Erro na transação: ${error.message}`, 'error');
+        showMsg(`Erro na transação: ${error.message}`, 'error', true);
       } else {
         showMsg('Apontamento de turno registrado com sucesso! Baixa de estoque efetuada.');
         // Limpar campos
@@ -210,7 +212,7 @@ export default function ApontamentoScreen({ orders, onStartProduction }: Apontam
         await loadFormData();
       }
     } catch (err: any) {
-      showMsg(`Falha inesperada: ${err.message}`, 'error');
+      showMsg(`Falha inesperada: ${err.message}`, 'error', true);
     } finally {
       setActionLoading(false);
     }
@@ -233,11 +235,14 @@ export default function ApontamentoScreen({ orders, onStartProduction }: Apontam
           <p className="text-xs text-outline font-medium">Lançamentos de produção líquida e auditoria de setup de turno</p>
         </div>
         {msg.text && (
-          <span className={`text-xs px-3 py-1.5 rounded-lg font-bold border ${
+          <div className={`text-xs px-3 py-1.5 rounded-lg font-bold border flex items-center justify-between gap-3 ${
             msg.type === 'error' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-green-50 text-green-700 border-green-200'
           }`}>
-            {msg.text}
-          </span>
+            <span>{msg.text}</span>
+            <button type="button" onClick={() => setMsg({ text: '', type: '' })} className="opacity-70 hover:opacity-100 flex items-center justify-center">
+              <span className="material-symbols-outlined text-[16px]">close</span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -316,7 +321,7 @@ export default function ApontamentoScreen({ orders, onStartProduction }: Apontam
                 >
                   <option value="">Selecione o operador...</option>
                   {employees.map(emp => (
-                    <option key={emp.id} value={emp.nome}>{emp.nome} ({emp.role})</option>
+                    <option key={emp.id} value={emp.nome}>{emp.nome} ({emp.cargo})</option>
                   ))}
                 </select>
               </div>

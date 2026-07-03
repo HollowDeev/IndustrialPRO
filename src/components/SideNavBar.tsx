@@ -41,6 +41,18 @@ export default function SideNavBar({
             <span className="material-symbols-outlined">dashboard</span>
             <span>Dashboard</span>
           </button>
+          
+          <button
+            onClick={() => setCurrentScreen('estoque')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-all duration-200 text-left ${
+              currentScreen === 'estoque'
+                ? 'bg-primary-container text-on-primary-container font-bold border-l-4 border-secondary'
+                : 'text-on-surface-variant hover:bg-surface-container-high'
+            }`}
+          >
+            <span className="material-symbols-outlined">warehouse</span>
+            <span>Almoxarifado</span>
+          </button>
         </div>
 
         {/* Cadastros Parent Group */}
