@@ -52,7 +52,7 @@ export default function ReprogramacaoTecnica() {
       {/* Alert banner */}
       {simAlert && (
         <div className="bg-primary-container text-on-primary-container p-4 rounded-xl flex items-center gap-3 border border-secondary shadow-sm">
-          <span className="material-symbols-outlined text-[24px]">verified_user</span>
+          <span className="material-symbols-outlined notranslate text-[24px]">verified_user</span>
           <p className="text-xs font-bold leading-none">{simAlert}</p>
         </div>
       )}
@@ -63,7 +63,7 @@ export default function ReprogramacaoTecnica() {
         <div className="lg:col-span-5 bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-xs space-y-6">
           <div className="border-b border-surface-container pb-4">
             <h3 className="text-base font-bold text-primary flex items-center gap-2">
-              <span className="material-symbols-outlined text-secondary">calculate</span>
+              <span className="material-symbols-outlined notranslate text-secondary">calculate</span>
               Simular Otimização de Ciclo
             </h3>
             <p className="text-xs text-outline mt-1">Ajuste o batch e velocidades para recalcular a linha de tempo</p>
@@ -164,7 +164,7 @@ export default function ReprogramacaoTecnica() {
         <div className="lg:col-span-7 bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-xs space-y-6">
           <div className="border-b border-surface-container pb-4">
             <h3 className="text-base font-bold text-primary flex items-center gap-2">
-              <span className="material-symbols-outlined text-secondary">query_stats</span>
+              <span className="material-symbols-outlined notranslate text-secondary">query_stats</span>
               Impacto do Recálculo na Grade Técnica
             </h3>
             <p className="text-xs text-outline mt-1">Comparativo de tempo estimado de execução da extrusão</p>
@@ -175,7 +175,7 @@ export default function ReprogramacaoTecnica() {
             
             <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant/30 flex items-center gap-4">
               <div className="p-2.5 rounded-full bg-surface-container-high text-outline shrink-0">
-                <span className="material-symbols-outlined text-[28px]">schedule</span>
+                <span className="material-symbols-outlined notranslate text-[28px]">schedule</span>
               </div>
               <div>
                 <span className="text-[10px] uppercase font-bold text-outline">Estimativa Inicial</span>
@@ -186,7 +186,7 @@ export default function ReprogramacaoTecnica() {
 
             <div className="bg-tertiary-container/10 p-4 rounded-xl border border-tertiary-container flex items-center gap-4">
               <div className="p-2.5 rounded-full bg-tertiary-fixed text-primary shrink-0">
-                <span className="material-symbols-outlined text-[28px]">speed</span>
+                <span className="material-symbols-outlined notranslate text-[28px]">speed</span>
               </div>
               <div>
                 <span className="text-[10px] uppercase font-bold text-outline">Tempo Reprogramado</span>

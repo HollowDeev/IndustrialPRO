@@ -352,7 +352,7 @@ export default function BOMScreen() {
                   <button
                     onClick={handleSaveRecipe}
                     disabled={actionLoading}
-                    className="bg-[#002046] hover:bg-[#1b365d] text-white text-xs font-bold py-2.5 px-6 rounded-lg transition-all cursor-pointer"
+                    className="bg-secondary hover:brightness-95 text-white text-xs font-bold py-2.5 px-6 rounded-lg transition-all cursor-pointer"
                   >
                     {actionLoading ? 'Gravando Receita...' : 'Salvar Fórmula (BOM)'}
                   </button>

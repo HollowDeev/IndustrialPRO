@@ -7,6 +7,7 @@ interface FornecedoresProps {
   onUpdateSupplier: (supplier: Supplier) => void;
   isAddingNew: boolean;
   setIsAddingNew: (val: boolean) => void;
+  externalSearchQuery?: string;
 }
 
 export default function Fornecedores({
@@ -14,12 +15,11 @@ export default function Fornecedores({
   onAddSupplier,
   onUpdateSupplier,
   isAddingNew,
-  setIsAddingNew
+  setIsAddingNew,
+  externalSearchQuery = ''
 }: FornecedoresProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('Todas');
-  const [selectedStatus, setSelectedStatus] = useState('Todos');
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   // New Supplier Form State
   const [newName, setNewName] = useState('');
@@ -47,15 +47,11 @@ export default function Fornecedores({
 
   // Filtered Suppliers
   const filteredSuppliers = suppliers.filter(s => {
-    const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          s.cnpj.includes(searchQuery) ||
-                          s.contact.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesCategory = selectedCategory === 'Todas' || s.categories.includes(selectedCategory);
-    
-    const matchesStatus = selectedStatus === 'Todos' || s.status === selectedStatus;
-
-    return matchesSearch && matchesCategory && matchesStatus;
+    const search = externalSearchQuery.toLowerCase();
+    if (!search) return true;
+    return s.name.toLowerCase().includes(search) || 
+           s.cnpj.includes(search) ||
+           s.contact.toLowerCase().includes(search);
   });
 
   const handleCreateSupplier = (e: React.FormEvent) => {
@@ -65,7 +61,21 @@ export default function Fornecedores({
       return;
     }
 
-    const newSupplier: Supplier = {
+    if (isEditing && selectedSupplier) {
+      const updatedSupplier: Supplier = {
+        ...selectedSupplier,
+        name: newName,
+        cnpj: newCnpj,
+        IE: newIe || 'Isento',
+        categories: newCategories,
+        contact: newContact,
+        contactEmail: newEmail,
+        address: newAddress,
+      };
+      onUpdateSupplier(updatedSupplier);
+      setIsEditing(false);
+    } else {
+      const newSupplier: Supplier = {
       id: `SUP-${(suppliers.length + 1).toString().padStart(3, '0')}`,
       name: newName,
       cnpj: newCnpj,
@@ -90,6 +100,7 @@ export default function Fornecedores({
 
     onAddSupplier(newSupplier);
     setIsAddingNew(false);
+    } // End of else
 
     // Reset Form
     setNewName('');
@@ -100,6 +111,20 @@ export default function Fornecedores({
     setNewAddress('');
     setNewCategories([]);
     setRating(90);
+  };
+
+  const handleEditClick = () => {
+    if (selectedSupplier) {
+      setNewName(selectedSupplier.name);
+      setNewCnpj(selectedSupplier.cnpj);
+      setNewIe(selectedSupplier.IE);
+      setNewContact(selectedSupplier.contact);
+      setNewEmail(selectedSupplier.contactEmail);
+      setNewAddress(selectedSupplier.address);
+      setNewCategories(selectedSupplier.categories);
+      setIsEditing(true);
+      setIsAddingNew(true);
+    }
   };
 
   const toggleDocumentStatus = (docId: string) => {
@@ -135,17 +160,17 @@ export default function Fornecedores({
         <div className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-xs max-w-2xl mx-auto space-y-6">
           <div className="flex items-center justify-between border-b border-surface-container pb-4">
             <div>
-              <h3 className="text-lg font-bold text-primary flex items-center gap-2">
-                <span className="material-symbols-outlined text-secondary">add_business</span>
-                Cadastrar Novo Parceiro Homologado
+              <h3 className="text-base font-bold text-primary flex items-center gap-2">
+                <span className="material-symbols-outlined notranslate text-secondary">domain_add</span>
+                {isEditing ? 'Editar Fornecedor' : 'Cadastrar Novo Fornecedor (Onboarding)'}
               </h3>
-              <p className="text-xs text-outline mt-0.5">Seus dados serão auditados pela equipe de suprimentos</p>
+              <p className="text-xs text-outline mt-0.5">Preencha os dados primários para iniciar o processo de homologação ISO.</p>
             </div>
             <button
-              onClick={() => setIsAddingNew(false)}
+              onClick={() => { setIsAddingNew(false); setIsEditing(false); }}
               className="p-1 text-outline hover:text-primary rounded-full hover:bg-surface-container-high transition-colors cursor-pointer"
             >
-              <span className="material-symbols-outlined">close</span>
+              <span className="material-symbols-outlined notranslate">close</span>
             </button>
           </div>
 
@@ -254,7 +279,10 @@ export default function Fornecedores({
             <div className="pt-4 border-t border-surface-container flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setIsAddingNew(false)}
+                onClick={() => {
+                  setIsAddingNew(false);
+                  setIsEditing(false);
+                }}
                 className="bg-surface-container-high text-primary px-5 py-2.5 rounded-lg text-xs font-bold cursor-pointer hover:bg-surface-container-highest transition-colors"
               >
                 Cancelar
@@ -263,7 +291,7 @@ export default function Fornecedores({
                 type="submit"
                 className="bg-primary text-white px-5 py-2.5 rounded-lg text-xs font-bold hover:bg-primary-container transition-colors cursor-pointer"
               >
-                Salvar Cadastro
+                {isEditing ? 'Salvar Alterações' : 'Salvar Cadastro'}
               </button>
             </div>
           </form>
@@ -271,14 +299,22 @@ export default function Fornecedores({
       ) : selectedSupplierId && selectedSupplier ? (
         /* Detailed View of Single Provider (e.g. SteelTech mock page) */
         <div className="space-y-6">
-          {/* Back button */}
-          <button
-            onClick={() => setSelectedSupplierId(null)}
-            className="inline-flex items-center gap-2 text-xs font-bold text-outline hover:text-primary transition-colors cursor-pointer select-none bg-surface-container-low px-3 py-2 rounded-full border border-outline/10"
-          >
-            <span className="material-symbols-outlined text-[16px]">arrow_back</span>
-            Voltar para Listagem de Fornecedores
-          </button>
+          {/* Back button and Edit */}
+          <div className="flex justify-between items-center">
+            <button
+              onClick={() => setSelectedSupplierId(null)}
+              className="inline-flex items-center gap-2 text-xs font-bold text-outline hover:text-primary transition-colors cursor-pointer select-none bg-surface-container-low px-3 py-2 rounded-full border border-outline/10"
+            >
+              <span className="material-symbols-outlined notranslate text-[16px]">arrow_back</span>
+              Voltar para Listagem de Fornecedores
+            </button>
+            <button
+              onClick={handleEditClick}
+              className="bg-secondary hover:brightness-95 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors shadow-sm cursor-pointer"
+            >
+              EDITAR FORNECEDOR
+            </button>
+          </div>
 
           {/* Supplier Header Dashboard detail card */}
           <div className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-xs space-y-6">
@@ -336,7 +372,7 @@ export default function Fornecedores({
             </div>
 
             {/* Quick General metadata details */}
-            <div className="grid grid-cols-2 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 text-xs">
               <div>
                 <span className="text-outline font-medium">Contato Comercial</span>
                 <p className="font-bold text-primary mt-0.5">{selectedSupplier.contact}</p>
@@ -344,6 +380,10 @@ export default function Fornecedores({
               <div>
                 <span className="text-outline font-medium">E-mail</span>
                 <p className="font-bold text-primary mt-0.5 truncate">{selectedSupplier.contactEmail}</p>
+              </div>
+              <div>
+                <span className="text-outline font-medium">Tipos de Insumo (Categoria)</span>
+                <p className="font-bold text-secondary mt-0.5">{selectedSupplier.categories.join(', ')}</p>
               </div>
             </div>
 
@@ -378,7 +418,7 @@ export default function Fornecedores({
 
               <div className="space-y-3">
                 <div className="p-6 bg-surface-bright border border-outline-variant/50 rounded-xl flex flex-col items-center justify-center text-center space-y-2">
-                  <span className="material-symbols-outlined text-[32px] text-outline-variant">construction</span>
+                  <span className="material-symbols-outlined notranslate text-[32px] text-outline-variant">construction</span>
                   <p className="text-sm font-bold text-primary">Módulo em Desenvolvimento</p>
                   <p className="text-xs text-outline max-w-xs">A gestão de documentação regulatória (ISO, licenças ambientais, contratos) será implementada em futuras atualizações.</p>
                 </div>
@@ -386,33 +426,39 @@ export default function Fornecedores({
             </div>
 
             {/* Past OP/Delivery History section */}
-            <div className="lg:col-span-6 bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-xs space-y-4">
-              <div>
-                <h4 className="text-sm font-bold text-primary">Ordens de Abastecimento (Histórico)</h4>
-                <p className="text-xs text-outline">Últimos pedidos de matéria-prima e insumos</p>
-              </div>
+            <div className="lg:col-span-6 bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-xs">
+              <h3 className="text-base font-bold text-primary flex items-center gap-2 mb-4">
+                <span className="material-symbols-outlined notranslate text-secondary">history</span>
+                Histórico de Entradas no Almoxarifado
+              </h3>
 
               <div className="space-y-3">
                 {selectedSupplier.history.length === 0 ? (
-                  <p className="text-xs text-outline p-4 text-center">Nenhuma ordem de abastecimento registrada.</p>
+                  <p className="text-xs text-outline font-semibold">Nenhuma entrada registrada para este fornecedor ainda.</p>
                 ) : (
                   selectedSupplier.history.map(item => (
-                    <div
-                      key={item.id}
-                      className="p-3 bg-surface-bright border border-outline-variant/50 rounded-xl flex items-center justify-between text-xs"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-primary">{item.id}</span>
-                          <span className="w-1.5 h-1.5 rounded-full bg-outline-variant"></span>
-                          <span className="text-[11px] text-outline">{item.orderDate}</span>
+                    <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 bg-surface-container-low rounded-xl border border-outline-variant/30 hover:border-secondary/30 transition-colors gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined notranslate text-on-secondary-container text-lg">local_shipping</span>
                         </div>
-                        <p className="text-[11px] text-primary font-medium truncate max-w-[280px]">{item.items}</p>
+                        <div>
+                          <p className="text-sm font-bold text-primary">{item.item}</p>
+                          <p className="text-xs text-outline font-medium">Data Prevista: {item.date}</p>
+                        </div>
                       </div>
-
-                      <div className="text-right">
-                        <p className="font-extrabold text-primary">R$ {item.totalValue.toLocaleString()}</p>
-                        <span className="text-[10px] font-bold text-on-tertiary-container">{item.status}</span>
+                      <div className="flex items-center gap-4 text-xs font-bold sm:text-right">
+                        <div>
+                          <p className="text-outline mb-0.5">Quantidade</p>
+                          <p className="text-primary">{item.amount}</p>
+                        </div>
+                        <div>
+                          <p className="text-outline mb-0.5">Valor Total</p>
+                          <p className="text-primary">{item.value}</p>
+                        </div>
+                        <div className={`px-2 py-1 rounded ${item.status === 'Concluído' ? 'bg-tertiary-fixed text-on-tertiary-fixed' : item.status === 'Pendente' ? 'bg-secondary-container text-on-secondary-container' : 'bg-error-container text-on-error-container'}`}>
+                          {item.status}
+                        </div>
                       </div>
                     </div>
                   ))
@@ -425,63 +471,12 @@ export default function Fornecedores({
       ) : (
         /* Standard Supplier Grid & filters list */
         <div className="space-y-6">
-          
-          {/* Filtering bar panel */}
-          <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
-            
-            {/* Search Box inputs inside */}
-            <div className="relative w-full md:max-w-xs">
-              <span className="material-symbols-outlined absolute left-3 top-2.5 text-[20px] text-outline">
-                search
-              </span>
-              <input
-                type="text"
-                placeholder="Razão Social, CNPJ ou email..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-surface-container-low text-primary text-xs px-10 py-2.5 rounded-lg border border-outline/10 focus:border-secondary outline-hidden"
-              />
-            </div>
-
-            {/* Categories pills list */}
-            <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
-              <span className="text-xs font-bold text-outline uppercase mr-2 tracking-wider">Filtrar:</span>
-              {categoriesList.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-full cursor-pointer select-none transition-all ${
-                    selectedCategory === cat
-                      ? 'bg-primary text-white border-primary shadow-xs'
-                      : 'bg-surface-bright text-outline border border-outline-variant hover:bg-surface-container-low'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-
-            {/* Status dropdown */}
-            <div>
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                className="bg-surface-container-low border border-outline/10 text-xs font-bold text-primary rounded-lg p-2.5 cursor-pointer outline-hidden focus:border-secondary"
-              >
-                <option value="Todos">Auditoria: Todos</option>
-                <option value="Ativo">Ativo (Homologado)</option>
-                <option value="Em Homologação">Em Homologação</option>
-                <option value="Bloqueado">Bloqueado</option>
-              </select>
-            </div>
-
-          </div>
 
           {/* Suppliers Grid items list */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredSuppliers.length === 0 ? (
               <div className="col-span-full bg-surface-container-lowest p-12 rounded-2xl border border-outline-variant text-center space-y-2">
-                <span className="material-symbols-outlined text-[48px] text-outline">corporate_fare</span>
+                <span className="material-symbols-outlined notranslate text-[48px] text-outline">corporate_fare</span>
                 <p className="text-sm font-bold text-primary">Nenhum parceiro encontrado com os filtros selecionados.</p>
                 <p className="text-xs text-outline">Adicione um novo no menu lateral ou revise as categorias.</p>
               </div>

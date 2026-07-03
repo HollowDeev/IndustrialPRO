@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '../utils/supabase/client';
+import LoadingOverlay from './LoadingOverlay';
 
 interface EstoqueItem {
   id: string;
@@ -210,12 +211,8 @@ export default function EstoqueScreen() {
     return Math.min(100, Math.max(0, (val / maxCapacity) * 100));
   };
 
-  if (loading && items.length === 0) {
-    return (
-      <div className="flex-1 flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#002046]"></div>
-      </div>
-    );
+  if (loading) {
+    return <LoadingOverlay message="Carregando Inventário de Estoque..." />;
   }
 
   const filteredItems = filter === 'TODOS' ? items : items.filter(i => i.categoria === filter);
@@ -234,9 +231,9 @@ export default function EstoqueScreen() {
         
         <button
           onClick={() => setIsAddModalOpen(true)}
-          className="bg-[#002046] hover:bg-[#1b365d] text-white text-xs font-bold px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2"
+          className="bg-secondary hover:brightness-95 text-white text-xs font-bold px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2"
         >
-          <span className="material-symbols-outlined text-[18px]">local_shipping</span>
+          <span className="material-symbols-outlined notranslate text-[18px]">local_shipping</span>
           NOVA ENTRADA
         </button>
       </div>
@@ -305,7 +302,7 @@ export default function EstoqueScreen() {
                         </span>
                       </div>
                       {isCritical && (
-                        <span className="material-symbols-outlined text-error" title="Estoque Crítico">warning</span>
+                        <span className="material-symbols-outlined notranslate text-error" title="Estoque Crítico">warning</span>
                       )}
                     </div>
 
@@ -427,11 +424,11 @@ export default function EstoqueScreen() {
           <form onSubmit={handleAddEntradaSubmit} className="bg-white max-w-lg w-full rounded-2xl shadow-2xl p-6 border border-outline-variant space-y-4">
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className="text-sm font-black text-[#002046] uppercase flex items-center gap-2">
-                <span className="material-symbols-outlined text-[20px]">local_shipping</span>
+                <span className="material-symbols-outlined notranslate text-[20px]">local_shipping</span>
                 Registrar Previsão de Entrada
               </h3>
               <button type="button" onClick={() => setIsAddModalOpen(false)} className="text-[#74777f] hover:text-[#002046] transition-colors cursor-pointer">
-                <span className="material-symbols-outlined">close</span>
+                <span className="material-symbols-outlined notranslate">close</span>
               </button>
             </div>
 
@@ -502,7 +499,7 @@ export default function EstoqueScreen() {
               <button type="button" onClick={() => setIsAddModalOpen(false)} className="bg-[#f4f3f9] hover:bg-[#e4e3e9] text-[#002046] font-bold px-4 py-2.5 rounded-lg text-xs cursor-pointer">
                 Cancelar
               </button>
-              <button type="submit" className="bg-[#002046] hover:bg-[#1b365d] text-white font-bold px-4 py-2.5 rounded-lg text-xs cursor-pointer">
+              <button type="submit" className="bg-secondary hover:brightness-95 text-white font-bold px-4 py-2.5 rounded-lg text-xs cursor-pointer">
                 {isImmediate ? 'Salvar e Receber' : 'Salvar Previsão'}
               </button>
             </div>
@@ -514,7 +511,7 @@ export default function EstoqueScreen() {
       {confirmDeliveryId && (
         <div className="fixed inset-0 bg-black/55 flex items-center justify-center z-[1000] p-4 animate-fade-in">
           <div className="bg-white max-w-sm w-full rounded-2xl shadow-2xl p-6 text-center border border-outline-variant">
-            <span className={`material-symbols-outlined text-[48px] ${isEarlyDelivery ? 'text-red-600' : 'text-[#002046]'} mb-4`}>
+            <span className={`material-symbols-outlined notranslate text-[48px] ${isEarlyDelivery ? 'text-red-600' : 'text-[#002046]'} mb-4`}>
               {isEarlyDelivery ? 'warning' : 'inventory_2'}
             </span>
             <h3 className="text-lg font-black text-on-surface mb-2">Confirmar Entrega?</h3>
@@ -531,7 +528,7 @@ export default function EstoqueScreen() {
             <div className="flex flex-col gap-2">
               <button 
                 onClick={confirmRecebimento}
-                className={`w-full text-white font-bold px-4 py-3 rounded-xl text-sm transition-colors cursor-pointer ${isEarlyDelivery ? 'bg-red-600 hover:bg-red-700' : 'bg-[#002046] hover:bg-[#1b365d]'}`}
+                className={`w-full text-white font-bold px-4 py-3 rounded-xl text-sm transition-colors cursor-pointer ${isEarlyDelivery ? 'bg-red-600 hover:bg-red-700' : 'bg-secondary hover:brightness-95'}`}
               >
                 Sim, Confirmar Recebimento
               </button>

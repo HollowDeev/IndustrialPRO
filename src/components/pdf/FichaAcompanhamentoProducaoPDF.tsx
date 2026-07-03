@@ -1,5 +1,5 @@
 import React from 'react';
-import { Page, Text, View, Document, StyleSheet } from '@react-pdf/renderer';
+import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/renderer';
 import { Order } from '../../types';
 
 // Create styles
@@ -65,11 +65,28 @@ const styles = StyleSheet.create({
     bottom: 20,
     left: 30,
     right: 30,
-    textAlign: 'center',
-    fontSize: 8,
     borderTopWidth: 1,
     borderColor: '#000',
     paddingTop: 5,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  footerImages: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  footerLogo: {
+    height: 14,
+    marginRight: 10,
+  },
+  footerAssinatura: {
+    height: 14,
+    marginRight: 10,
+  },
+  footerText: {
+    fontSize: 8,
+    color: '#333',
   },
 });
 
@@ -222,9 +239,16 @@ const FichaAcompanhamentoProducaoPDF = ({ order }: FichaProps) => {
           <View style={styles.tableRow}><Col width="50%" isLastRow>Transição operacional</Col><Col width="50%" isLast isLastRow>Setup sem paradas longas</Col></View>
         </View>
         
-        <Text style={styles.footer} render={({ pageNumber, totalPages }) => (
-          `Critério: 04 vergalhões Ø8 mm por suporte, com 7 cm a menos que o comprimento final. | Pagina ${pageNumber} de ${totalPages}`
-        )} fixed />
+        <View style={styles.footer} fixed>
+          <View style={styles.footerImages}>
+            <Image src="/kore-black.png" style={styles.footerLogo} />
+            <Image src="/assinatura.png" style={styles.footerAssinatura} />
+            <Text style={styles.footerText}>Kore Industrial ERP © 2026</Text>
+          </View>
+          <Text style={styles.footerText} render={({ pageNumber, totalPages }) => (
+            `Página ${pageNumber} de ${totalPages}`
+          )} />
+        </View>
       </Page>
       
       <Page size="A4" style={styles.page}>
@@ -295,9 +319,16 @@ const FichaAcompanhamentoProducaoPDF = ({ order }: FichaProps) => {
           ))}
         </View>
 
-        <Text style={styles.footer} render={({ pageNumber, totalPages }) => (
-          `Critério: 04 vergalhões Ø8 mm por suporte, com 7 cm a menos que o comprimento final. | Pagina ${pageNumber} de ${totalPages}`
-        )} fixed />
+        <View style={styles.footer} fixed>
+          <View style={styles.footerImages}>
+            <Image src="/kore-black.png" style={styles.footerLogo} />
+            <Image src="/assinatura.png" style={styles.footerAssinatura} />
+            <Text style={styles.footerText}>Kore Industrial ERP © 2026</Text>
+          </View>
+          <Text style={styles.footerText} render={({ pageNumber, totalPages }) => (
+            `Página ${pageNumber} de ${totalPages}`
+          )} />
+        </View>
       </Page>
     </Document>
   );

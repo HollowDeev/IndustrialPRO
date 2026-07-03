@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
+import LoadingOverlay from './LoadingOverlay'
 
 interface Familia {
   id: string
@@ -194,12 +195,8 @@ export default function FamiliasSkusScreen({ triggerAddNew }: { triggerAddNew?: 
     setActionLoading(false)
   }
 
-  if (loading && familias.length === 0) {
-    return (
-      <div className="flex items-center justify-center p-12 text-outline font-bold">
-        Carregando Catálogo Técnico...
-      </div>
-    )
+  if (loading) {
+    return <LoadingOverlay message="Carregando Catálogo Técnico..." />;
   }
 
   const selectedFamilia = familias.find(f => f.id === selectedFamiliaId)
@@ -226,7 +223,7 @@ export default function FamiliasSkusScreen({ triggerAddNew }: { triggerAddNew?: 
         <div className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-xs flex flex-col justify-between">
           <div>
             <h4 className="text-xs font-black text-primary uppercase tracking-wider mb-4 border-b pb-2 flex items-center gap-2">
-              <span className="material-symbols-outlined text-sm">category</span>
+              <span className="material-symbols-outlined notranslate text-sm">category</span>
               Famílias de Produto
             </h4>
             
@@ -334,7 +331,7 @@ export default function FamiliasSkusScreen({ triggerAddNew }: { triggerAddNew?: 
           <div>
             <h4 className="text-xs font-black text-primary uppercase tracking-wider mb-4 border-b pb-2 flex items-center justify-between">
               <span className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-sm">straighten</span>
+                <span className="material-symbols-outlined notranslate text-sm">straighten</span>
                 Variantes SKU da Família: <strong className="text-secondary">{selectedFamilia?.nome || 'Nenhuma'}</strong>
               </span>
               <span className="bg-surface-container text-outline px-2.5 py-0.5 rounded-sm text-[10px]">

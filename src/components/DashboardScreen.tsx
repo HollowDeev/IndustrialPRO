@@ -317,9 +317,9 @@ export default function DashboardScreen({
         <div className="flex gap-2">
           <button
             onClick={() => setCurrentScreen('pedidos')}
-            className="bg-[#002046] text-white hover:bg-[#1b365d] font-bold text-xs px-5 py-3 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs border border-transparent"
+            className="bg-secondary text-white hover:brightness-95 font-bold text-xs px-5 py-3 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs border border-transparent"
           >
-            <span className="material-symbols-outlined text-[18px]">production_quantity_limits</span>
+            <span className="material-symbols-outlined notranslate text-[18px]">production_quantity_limits</span>
             VER PEDIDOS
           </button>
         </div>
@@ -331,7 +331,7 @@ export default function DashboardScreen({
         {/* KPI 1: Carteira de Vendas */}
         <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant shadow-xs flex items-center gap-4">
           <div className="p-3 rounded-xl bg-tertiary-fixed text-primary shrink-0">
-            <span className="material-symbols-outlined text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+            <span className="material-symbols-outlined notranslate text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>
               shopping_cart
             </span>
           </div>
@@ -345,7 +345,7 @@ export default function DashboardScreen({
         {/* KPI 2: Volume de Estoque - Blend */}
         <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant shadow-xs flex items-center gap-4">
           <div className="p-3 rounded-xl bg-surface-container-high text-primary shrink-0">
-            <span className="material-symbols-outlined text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+            <span className="material-symbols-outlined notranslate text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>
               layers
             </span>
           </div>
@@ -359,7 +359,7 @@ export default function DashboardScreen({
         {/* KPI 3: Alerta de MRP */}
         <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant shadow-xs flex items-center gap-4">
           <div className={`p-3 rounded-xl shrink-0 ${hasMRPAlert ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-            <span className="material-symbols-outlined text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+            <span className="material-symbols-outlined notranslate text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>
               {hasMRPAlert ? 'report' : 'check_circle'}
             </span>
           </div>
@@ -375,7 +375,7 @@ export default function DashboardScreen({
         {/* KPI 4: Ordens em Produção */}
         <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant shadow-xs flex items-center gap-4">
           <div className="bg-surface-container-high text-primary p-3 rounded-xl shrink-0">
-            <span className="material-symbols-outlined text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+            <span className="material-symbols-outlined notranslate text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>
               precision_manufacturing
             </span>
           </div>
@@ -516,7 +516,7 @@ export default function DashboardScreen({
           <form onSubmit={handleSavePurchaseOrder} className="bg-white max-w-md w-full rounded-2xl shadow-2xl p-6 border border-outline-variant space-y-4">
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className="text-sm font-black text-primary uppercase flex items-center gap-2">
-                <span className="material-symbols-outlined text-[18px]">shopping_bag</span>
+                <span className="material-symbols-outlined notranslate text-[18px]">shopping_bag</span>
                 Sugerir Compra de Insumo
               </h3>
               <button 
@@ -524,7 +524,7 @@ export default function DashboardScreen({
                 onClick={() => setIsPurchaseModalOpen(false)}
                 className="text-outline hover:text-primary transition-colors cursor-pointer"
               >
-                <span className="material-symbols-outlined">close</span>
+                <span className="material-symbols-outlined notranslate">close</span>
               </button>
             </div>
 
@@ -591,7 +591,7 @@ export default function DashboardScreen({
               <button
                 type="submit"
                 disabled={actionLoading}
-                className="bg-[#002046] hover:bg-[#1b365d] text-white font-bold px-4 py-2 rounded-lg text-xs cursor-pointer"
+                className="bg-secondary hover:brightness-95 text-white font-bold px-4 py-2 rounded-lg text-xs cursor-pointer"
               >
                 {actionLoading ? 'Registrando Ordem...' : 'Emitir Ordem de Compra'}
               </button>

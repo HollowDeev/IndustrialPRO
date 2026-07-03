@@ -20,6 +20,7 @@ import {
   UserPlus
 } from 'lucide-react';
 import { createClient } from '../utils/supabase/client';
+import LoadingOverlay from './LoadingOverlay';
 
 export default function Funcionarios({ 
   externalSearchQuery,
@@ -445,12 +446,8 @@ export default function Funcionarios({
     { key: 'extrusorNivel2', label: 'Extrusor Nível 2' }
   ];
 
-  if (loading && employees.length === 0) {
-    return (
-      <div className="flex items-center justify-center p-12 text-outline font-bold">
-        Carregando Quadro de Colaboradores...
-      </div>
-    );
+  if (loading) {
+    return <LoadingOverlay message="Carregando Quadro de Colaboradores..." />;
   }
 
   return (
@@ -461,13 +458,6 @@ export default function Funcionarios({
           <h2 className="text-xl font-black text-primary tracking-tight">CADASTRO E GESTÃO DE FUNCIONÁRIOS</h2>
           <p className="text-xs text-outline">Gerenciamento completo de informações pessoais, regime de horas, ponto e qualidades operacionais.</p>
         </div>
-        <button
-          onClick={handleStartAddNew}
-          className="flex items-center gap-2 bg-secondary hover:bg-secondary/95 text-white font-bold py-2.5 px-4 rounded-xl text-xs tracking-wider transition-all shadow-sm cursor-pointer"
-        >
-          <UserPlus size={16} />
-          CADASTRAR NOVO FUNCIONÁRIO
-        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -515,7 +505,6 @@ export default function Funcionarios({
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-1.5">
                           <span className="text-xs font-bold">{emp.firstName} {emp.lastName}</span>
-                          <span className="text-[9px] font-mono bg-surface-container px-1 py-0.2 rounded text-outline">{emp.id}</span>
                         </div>
                         <p className="text-[10px] text-outline line-clamp-1">{emp.role}</p>
                       </div>
@@ -750,7 +739,6 @@ export default function Funcionarios({
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="text-lg font-extrabold text-primary">{currentEmployee.firstName} {currentEmployee.lastName}</h3>
-                      <span className="font-mono text-xs bg-surface-container px-2 py-0.5 rounded text-outline font-bold">{currentEmployee.id}</span>
                     </div>
                     <p className="text-xs text-outline font-medium flex items-center gap-1 mt-0.5">
                       <Briefcase size={12} className="text-secondary" />

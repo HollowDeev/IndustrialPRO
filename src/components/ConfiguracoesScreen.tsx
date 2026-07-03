@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
+import LoadingOverlay from './LoadingOverlay'
+import ButtonSpinner from './ButtonSpinner'
 
 export default function ConfiguracoesScreen() {
   const supabase = createClient()
@@ -122,11 +124,7 @@ export default function ConfiguracoesScreen() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center p-12 text-outline font-bold">
-        Carregando Configurações...
-      </div>
-    )
+    return <LoadingOverlay message="Carregando Configurações..." />;
   }
 
   return (
@@ -150,7 +148,7 @@ export default function ConfiguracoesScreen() {
         {/* Painel do Perfil da Empresa */}
         <div className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-xs space-y-4">
           <h4 className="text-xs font-black text-primary uppercase tracking-wider mb-2 border-b pb-2 flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm">business</span>
+            <span className="material-symbols-outlined notranslate text-sm">business</span>
             Dados da Empresa
           </h4>
 
@@ -194,9 +192,9 @@ export default function ConfiguracoesScreen() {
               <button
                 type="submit"
                 disabled={actionLoading}
-                className="bg-[#002046] hover:bg-[#1b365d] text-white text-xs font-bold py-2.5 px-6 rounded-lg transition-all cursor-pointer"
+                className="bg-secondary hover:brightness-95 text-white text-xs font-bold py-2.5 px-6 rounded-lg transition-all cursor-pointer"
               >
-                {actionLoading ? 'Salvando...' : 'Salvar Alterações'}
+                {actionLoading ? <ButtonSpinner size={16} /> : 'Salvar Alterações'}
               </button>
             </form>
           ) : (
@@ -207,7 +205,7 @@ export default function ConfiguracoesScreen() {
         {/* Painel de Segurança (Alteração de Senha) */}
         <div className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-xs space-y-4">
           <h4 className="text-xs font-black text-primary uppercase tracking-wider mb-2 border-b pb-2 flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm">lock</span>
+            <span className="material-symbols-outlined notranslate text-sm">lock</span>
             Segurança da Conta
           </h4>
 

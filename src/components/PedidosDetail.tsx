@@ -5,10 +5,12 @@ import PDFExportButtons from './pdf/PDFExportButtons';
 interface PedidosDetailProps {
   order: Order;
   onUpdateOrder: (updatedOrder: Order) => void;
+  onFinishOrder: (orderId: string) => void;
+  onDeleteOrder: (order: Order) => void;
   onBack: () => void;
 }
 
-export default function PedidosDetail({ order, onUpdateOrder, onBack }: PedidosDetailProps) {
+export default function PedidosDetail({ order, onUpdateOrder, onFinishOrder, onDeleteOrder, onBack }: PedidosDetailProps) {
   // Line item adder form states
   const [newProduct, setNewProduct] = useState('');
   const [newMeasure, setNewMeasure] = useState('');
@@ -141,13 +143,28 @@ export default function PedidosDetail({ order, onUpdateOrder, onBack }: PedidosD
           onClick={onBack}
           className="inline-flex items-center gap-2 text-xs font-bold text-outline hover:text-primary transition-colors cursor-pointer select-none bg-surface-container-low px-3 py-2 rounded-full border border-outline/10"
         >
-          <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+          <span className="material-symbols-outlined notranslate text-[16px]">arrow_back</span>
           Voltar para Lista de Pedidos
         </button>
 
-        <span className="text-xs text-outline font-medium">
-          Código Único Ref: <strong className="text-primary font-mono">{order.id}</strong>
-        </span>
+        <div className="flex gap-2">
+          {order.status !== 'FINALIZADO' && (
+            <button 
+              onClick={() => onFinishOrder(order.id)}
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+            >
+              <span className="material-symbols-outlined notranslate text-[16px]">check_circle</span>
+              FINALIZAR PEDIDO
+            </button>
+          )}
+          <button 
+            onClick={() => onDeleteOrder(order)}
+            className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+          >
+            <span className="material-symbols-outlined notranslate text-[16px]">delete</span>
+            EXCLUIR PEDIDO
+          </button>
+        </div>
       </div>
 
       {/* Main Order general stats dashboard */}
@@ -155,12 +172,11 @@ export default function PedidosDetail({ order, onUpdateOrder, onBack }: PedidosD
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-surface-container">
           <div>
             <h3 className="text-base font-bold text-primary flex items-center gap-2">
-              <span className="material-symbols-outlined text-secondary">factory</span>
-              Ficha Técnica de Fabricação - OP Ativa
+              <span className="material-symbols-outlined notranslate text-secondary">factory</span>
+              Ficha Técnica de Fabricação - {order.status === 'FINALIZADO' ? 'OP FINALIZADA' : 'OP Ativa'}
             </h3>
             <p className="text-xs text-outline mt-0.5">Lotes de fabricação alocados para o cliente <strong className="text-primary font-bold">{order.clientName}</strong></p>
           </div>
-
           <div className="flex items-center gap-2.5">
             <span className="text-xs text-outline font-bold uppercase">Estado:</span>
             <span className="bg-tertiary-fixed text-on-tertiary-fixed text-xs font-black px-3 py-1 rounded-sm uppercase tracking-wide">
@@ -218,7 +234,7 @@ export default function PedidosDetail({ order, onUpdateOrder, onBack }: PedidosD
         <div className="lg:col-span-4 bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-xs space-y-4">
           <div className="border-b border-surface-container pb-3">
             <h4 className="text-sm font-bold text-primary flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-secondary">playlist_add</span>
+              <span className="material-symbols-outlined notranslate text-secondary">playlist_add</span>
               Anexar Item Técnico à OP
             </h4>
             <p className="text-xs text-outline mt-0.5">Insira novos perfis PVC sob demanda nesta ordem</p>
@@ -397,7 +413,7 @@ export default function PedidosDetail({ order, onUpdateOrder, onBack }: PedidosD
                               className="p-1 text-outline hover:text-primary rounded-full hover:bg-surface-container-high transition-colors cursor-pointer"
                               title="Ajustar Volume"
                             >
-                              <span className="material-symbols-outlined text-[15px]">edit</span>
+                              <span className="material-symbols-outlined notranslate text-[15px]">edit</span>
                             </button>
                           )}
 
@@ -406,7 +422,7 @@ export default function PedidosDetail({ order, onUpdateOrder, onBack }: PedidosD
                             className="p-1 text-outline hover:text-error rounded-full hover:bg-error-container/10 transition-colors cursor-pointer"
                             title="Remover"
                           >
-                            <span className="material-symbols-outlined text-[15px]">close</span>
+                            <span className="material-symbols-outlined notranslate text-[15px]">close</span>
                           </button>
                         </div>
                       </td>

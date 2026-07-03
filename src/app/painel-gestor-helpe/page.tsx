@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import Logo from '@/components/Logo'
+import LoadingOverlay from '@/components/LoadingOverlay'
 
 interface Empresa {
   id: string
@@ -206,8 +207,8 @@ export default function PainelGestorHelpe() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8f9fa] text-[#002046] font-bold">
-        Carregando painel de controle...
+      <div className="min-h-screen flex w-full bg-background">
+        <LoadingOverlay message="Carregando painel de controle..." />
       </div>
     )
   }
@@ -233,7 +234,7 @@ export default function PainelGestorHelpe() {
                   : 'text-[#74777f] hover:bg-[#f3f4f5]'
               }`}
             >
-              <span className="material-symbols-outlined">factory</span>
+              <span className="material-symbols-outlined notranslate">factory</span>
               <span>Empresas (Tenants)</span>
             </button>
 
@@ -245,7 +246,7 @@ export default function PainelGestorHelpe() {
                   : 'text-[#74777f] hover:bg-[#f3f4f5]'
               }`}
             >
-              <span className="material-symbols-outlined">badge</span>
+              <span className="material-symbols-outlined notranslate">badge</span>
               <span>Usuários Clientes</span>
             </button>
 
@@ -257,7 +258,7 @@ export default function PainelGestorHelpe() {
                   : 'text-[#74777f] hover:bg-[#f3f4f5]'
               }`}
             >
-              <span className="material-symbols-outlined">history</span>
+              <span className="material-symbols-outlined notranslate">history</span>
               <span>Logs de Acesso</span>
             </button>
           </nav>
@@ -267,7 +268,7 @@ export default function PainelGestorHelpe() {
           onClick={handleLogout}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 transition-colors uppercase tracking-wider text-left"
         >
-          <span className="material-symbols-outlined">logout</span>
+          <span className="material-symbols-outlined notranslate">logout</span>
           <span>Desconectar</span>
         </button>
       </aside>

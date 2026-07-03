@@ -156,7 +156,7 @@ export default function TopAppBar({
         <div className="flex items-center gap-1.5 text-xs text-outline font-medium tracking-wide">
           {getBreadcrumbs().map((bc, idx) => (
             <React.Fragment key={idx}>
-              {idx > 0 && <span className="material-symbols-outlined text-[14px]">chevron_right</span>}
+              {idx > 0 && <span className="material-symbols-outlined notranslate text-[14px]">chevron_right</span>}
               {bc.active ? (
                 <span className="text-secondary font-semibold">{bc.name}</span>
               ) : (
@@ -170,7 +170,7 @@ export default function TopAppBar({
             </React.Fragment>
           ))}
         </div>
-        
+
         {/* Screen Title */}
         <h2 className="text-xl font-bold text-primary tracking-tight">{getTitle()}</h2>
       </div>
@@ -179,7 +179,7 @@ export default function TopAppBar({
       <div className="flex items-center gap-5 justify-between md:justify-end shrink-0 relative">
         {/* Search Input bar */}
         <div className="relative max-w-xs hidden sm:block">
-          <span className="material-symbols-outlined absolute left-3 top-2.5 text-[20px] text-outline">
+          <span className="material-symbols-outlined notranslate absolute left-3 top-2.5 text-[20px] text-outline">
             search
           </span>
           <input
@@ -193,11 +193,11 @@ export default function TopAppBar({
 
         {/* Dynamic Alerts Indicator with Dropdown */}
         <div className="relative">
-          <button 
+          <button
             onClick={() => setShowNotifDropdown(!showNotifDropdown)}
             className="relative p-2 rounded-full hover:bg-surface-container-high transition-colors cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[24px] text-primary">notifications</span>
+            <span className="material-symbols-outlined notranslate text-[24px] text-primary">notifications</span>
             {notifications.length > 0 && (
               <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-surface"></span>
             )}
@@ -207,8 +207,8 @@ export default function TopAppBar({
             <div className="absolute right-0 mt-2 w-80 bg-white border border-outline-variant rounded-2xl shadow-xl z-50 p-4 space-y-3">
               <div className="flex justify-between items-center border-b pb-2">
                 <span className="text-xs font-black text-primary uppercase">Notificações ({notifications.length})</span>
-                <button 
-                  onClick={() => setShowNotifDropdown(false)} 
+                <button
+                  onClick={() => setShowNotifDropdown(false)}
                   className="text-[10px] text-outline hover:text-primary font-bold uppercase"
                 >
                   Fechar
@@ -220,7 +220,7 @@ export default function TopAppBar({
                 ) : (
                   notifications.map(n => (
                     <div key={n.id} className="p-2.5 bg-red-50 text-red-700 text-xs rounded-lg border border-red-100 flex items-start gap-2">
-                      <span className="material-symbols-outlined text-[16px] mt-0.5">warning</span>
+                      <span className="material-symbols-outlined notranslate text-[16px] mt-0.5">warning</span>
                       <span>{n.text}</span>
                     </div>
                   ))
@@ -232,20 +232,21 @@ export default function TopAppBar({
 
         {/* User Card with dropdown click */}
         <div className="relative">
-          <div 
+          <div
             onClick={() => setShowUserDropdown(!showUserDropdown)}
             className="flex items-center gap-3 bg-surface-container-low px-4 py-1.5 rounded-full border border-outline-variant cursor-pointer hover:bg-surface-container-high transition-colors select-none"
           >
-            <div className="text-right">
-              <p className="text-xs font-bold text-primary">{userProfile?.nome || 'Carregando...'}</p>
-              <p className="text-[10px] font-semibold text-outline tracking-wider uppercase">{userProfile?.cargo || '...'}</p>
-            </div>
             <img
               src={avatarUrl}
               alt={avatarName}
               className="w-8 h-8 rounded-full border border-secondary object-cover shadow-xs"
             />
-            <span className="material-symbols-outlined text-xs text-outline">
+            <div className="text-right">
+              <p className="text-xs font-bold text-primary">{userProfile?.nome || 'Carregando...'}</p>
+              <p className="text-[10px] font-semibold text-outline tracking-wider uppercase">{userProfile?.cargo || '...'}</p>
+            </div>
+
+            <span className="material-symbols-outlined notranslate text-xs text-outline">
               {showUserDropdown ? 'expand_less' : 'expand_more'}
             </span>
           </div>
@@ -259,10 +260,10 @@ export default function TopAppBar({
                 }}
                 className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-primary hover:bg-surface-container-low rounded-lg transition-colors text-left cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[16px]">settings</span>
+                <span className="material-symbols-outlined notranslate text-[16px]">settings</span>
                 <span>Configurações</span>
               </button>
-              
+
               <button
                 onClick={async () => {
                   if (confirm('Deseja realmente sair do sistema?')) {
@@ -272,7 +273,7 @@ export default function TopAppBar({
                 }}
                 className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors text-left cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[16px]">logout</span>
+                <span className="material-symbols-outlined notranslate text-[16px]">logout</span>
                 <span>Sair</span>
               </button>
             </div>

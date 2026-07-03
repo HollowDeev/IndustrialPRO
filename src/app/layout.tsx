@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Helpe Gestão Industrial",
-  description: "Plataforma SaaS Multi-Tenant para o planejamento e automação MRP I",
+  title: "KORE Industrial",
+  description: "Plataforma de gestão industrial",
 };
 
 export default function RootLayout({

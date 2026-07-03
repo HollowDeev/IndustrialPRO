@@ -18,7 +18,7 @@ export default function AssinaturaSuspensaPage() {
       <div className="max-w-md w-full bg-white rounded-3xl border border-[#ffdad6] p-8 shadow-xs flex flex-col items-center">
         {/* Warning Icon */}
         <div className="w-16 h-16 rounded-full bg-[#ffdad6] flex items-center justify-center text-[#93000a] mb-6">
-          <span className="material-symbols-outlined text-[36px]">warning</span>
+          <span className="material-symbols-outlined notranslate text-[36px]">warning</span>
         </div>
 
         <div className="text-center mb-6">

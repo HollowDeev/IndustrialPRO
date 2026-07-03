@@ -16,6 +16,7 @@ import FamiliasSkusScreen from '../components/FamiliasSkusScreen';
 import BOMScreen from '../components/BOMScreen';
 import ConfiguracoesScreen from '../components/ConfiguracoesScreen';
 import EstoqueScreen from '../components/EstoqueScreen';
+import LoadingOverlay from '../components/LoadingOverlay';
 import { createClient } from '../utils/supabase/client';
 
 export default function Home() {
@@ -43,7 +44,8 @@ export default function Home() {
   const [newOrderCode, setNewOrderCode] = useState('');
   const [newOrderClient, setNewOrderClient] = useState('');
   const [newOrderLocation, setNewOrderLocation] = useState('');
-  const [newOrderPriority, setNewOrderPriority] = useState('MEDIA');
+  const [newOrderDeliveryDate, setNewOrderDeliveryDate] = useState('');
+  const [activeOrdersTab, setActiveOrdersTab] = useState<'ATIVOS' | 'FINALIZADOS'>('ATIVOS');
   const [newOrderSKUId, setNewOrderSKUId] = useState('');
   const [newOrderQty, setNewOrderQty] = useState('1000');
   const [dbSKUs, setDbSKUs] = useState<{ id: string; codigo: string; comprimento_mm: number }[]>([]);
@@ -81,7 +83,7 @@ export default function Home() {
           location: ped.localizacao || 'Planta Principal',
           emissionDate: new Date(ped.data_emissao).toLocaleDateString('pt-BR'),
           deliveryDate: ped.data_entrega ? new Date(ped.data_entrega).toISOString().split('T')[0] : '',
-          priority: ped.prioridade === 'ALTA' ? 'Alta' : ped.prioridade === 'BAIXA' ? 'Baixa' : 'Média',
+          status: ped.status || 'ATIVO',
           totalProduced,
           totalVolume,
           efficiency: 89.4,
@@ -95,32 +97,43 @@ export default function Home() {
         setSelectedOrderId(mappedOrders[0].id);
       }
 
-      // B) Carregar Fornecedores
+      // B) Carregar Fornecedores e seu histórico de entradas
       const { data: dbSuppliers } = await supabase
         .from('fornecedores')
-        .select('*')
+        .select('*, entradas_estoque(*, insumos(nome))')
         .order('nome');
 
-      const mappedSuppliers: Supplier[] = (dbSuppliers || []).map((sup: any) => ({
-        id: sup.id,
-        name: sup.nome,
-        cnpj: sup.cnpj || '',
-        IE: sup.ie || 'Isento',
-        categories: [sup.categoria || 'Matéria-Prima'],
-        rating: sup.rating || 90,
-        status: sup.status || 'Em Homologação',
-        contact: sup.contato_nome || '',
-        contactEmail: sup.contato_email || sup.email || '',
-        lastDelivery: sup.last_delivery || 'Recém Cadastrado',
-        address: sup.endereco || '',
-        limit: Number(sup.limite_financeiro) || 250000,
-        logo: sup.logo,
-        auditDate: sup.audit_date || new Date(sup.created_at).toLocaleDateString('pt-BR'),
-        paymentTerm: sup.payment_term || '30 Dias',
-        currency: sup.currency || 'BRL',
-        documents: sup.documents || [],
-        history: sup.history || []
-      }));
+      const mappedSuppliers: Supplier[] = (dbSuppliers || []).map((sup: any) => {
+        const history = (sup.entradas_estoque || []).map((entrada: any) => ({
+          id: entrada.id,
+          date: new Date(entrada.data_prevista).toLocaleDateString('pt-BR'),
+          item: entrada.insumos?.nome || 'Insumo',
+          amount: `${entrada.quantidade} unid`,
+          value: (entrada.quantidade * entrada.preco_unitario).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+          status: entrada.status === 'ENTREGUE' ? 'Concluído' : entrada.status === 'PENDENTE' ? 'Pendente' : 'Atrasado'
+        }));
+
+        return {
+          id: sup.id,
+          name: sup.nome,
+          cnpj: sup.cnpj || '',
+          IE: sup.ie || 'Isento',
+          categories: [sup.categoria || 'Matéria-Prima'],
+          rating: sup.rating || 90,
+          status: sup.status || 'Em Homologação',
+          contact: sup.contato_nome || '',
+          contactEmail: sup.contato_email || sup.email || '',
+          lastDelivery: sup.last_delivery || 'Recém Cadastrado',
+          address: sup.endereco || '',
+          limit: Number(sup.limite_financeiro) || 250000,
+          logo: sup.logo,
+          auditDate: sup.audit_date || new Date(sup.created_at).toLocaleDateString('pt-BR'),
+          paymentTerm: sup.payment_term || '30 Dias',
+          currency: sup.currency || 'BRL',
+          documents: sup.documents || [],
+          history: history
+        };
+      });
 
       setSuppliers(mappedSuppliers);
 
@@ -263,7 +276,7 @@ export default function Home() {
         codigo: newOrderCode,
         nome_cliente: newOrderClient,
         localizacao: newOrderLocation || 'São Paulo - SP',
-        prioridade: newOrderPriority
+        data_entrega: newOrderDeliveryDate || null
       })
       .select()
       .single();
@@ -286,6 +299,41 @@ export default function Home() {
     await fetchData();
     setSelectedOrderId(newOrderCode);
     setCurrentScreen('pedido-detail');
+  };
+
+  const handleFinishOrder = async (orderId: string) => {
+    const { error } = await supabase.from('pedidos').update({ status: 'FINALIZADO' }).eq('codigo', orderId);
+    if (error) {
+      alert('Erro ao finalizar pedido: ' + error.message);
+      return;
+    }
+    await fetchData();
+    setCurrentScreen('pedidos');
+  };
+
+  const handleDeleteOrder = async (order: Order) => {
+    const confirmDelete = window.confirm(`Tem certeza que deseja excluir o pedido ${order.id}? Esta ação não pode ser desfeita e será registrada.`);
+    if (!confirmDelete) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    const userEmail = user?.email || 'Desconhecido';
+
+    // Registra log de exclusão
+    await supabase.from('log_exclusao_pedidos').insert({
+      pedido_codigo: order.id,
+      pedido_nome_cliente: order.clientName,
+      usuario_email: userEmail
+    });
+
+    // Exclui pedido
+    const { error } = await supabase.from('pedidos').delete().eq('codigo', order.id);
+    if (error) {
+      alert('Erro ao excluir pedido: ' + error.message);
+      return;
+    }
+
+    await fetchData();
+    setCurrentScreen('pedidos');
   };
 
   // Handlers para Fornecedores
@@ -326,28 +374,30 @@ export default function Home() {
     }
   };
 
-  const handleUpdateSupplier = async (updatedSup: Supplier) => {
+  const handleUpdateSupplier = async (updatedSupplier: Supplier) => {
+    const categoryString = updatedSupplier.categories.length > 0 ? updatedSupplier.categories[0] : 'Matéria-Prima';
+
     const { error } = await supabase
       .from('fornecedores')
       .update({
-        nome: updatedSup.name,
-        cnpj: updatedSup.cnpj,
-        ie: updatedSup.IE,
-        categoria: updatedSup.categories,
-        rating: updatedSup.rating,
-        status: updatedSup.status,
-        contato_nome: updatedSup.contact,
-        contato_email: updatedSup.contactEmail,
-        endereco: updatedSup.address,
-        limite_financeiro: updatedSup.limit,
-        logo: updatedSup.logo,
-        audit_date: updatedSup.auditDate,
-        payment_term: updatedSup.paymentTerm,
-        currency: updatedSup.currency,
-        documents: updatedSup.documents,
-        history: updatedSup.history
+        nome: updatedSupplier.name,
+        cnpj: updatedSupplier.cnpj,
+        ie: updatedSupplier.IE,
+        categoria: categoryString,
+        contato_nome: updatedSupplier.contact,
+        contato_email: updatedSupplier.contactEmail,
+        endereco: updatedSupplier.address,
+        rating: updatedSupplier.rating,
+        status: updatedSupplier.status,
+        limite_financeiro: updatedSupplier.limit,
+        logo: updatedSupplier.logo,
+        audit_date: updatedSupplier.auditDate,
+        payment_term: updatedSupplier.paymentTerm,
+        currency: updatedSupplier.currency,
+        documents: updatedSupplier.documents,
+        history: updatedSupplier.history
       })
-      .eq('id', updatedSup.id);
+      .eq('id', updatedSupplier.id);
 
     if (error) {
       alert(`Erro ao atualizar fornecedor: ${error.message}`);
@@ -440,16 +490,30 @@ export default function Home() {
                   <h3 className="text-base font-bold text-primary">Listagem Geral de Pedidos / OPs</h3>
                   <p className="text-xs text-outline">Selecione uma carteira ativa abaixo para detalhar a ficha técnica</p>
                 </div>
-                <button
-                  onClick={handleAddOrder}
-                  className="bg-[#002046] hover:bg-[#1b365d] text-white text-xs font-bold px-4 py-2 rounded-lg cursor-pointer transition-colors"
-                >
-                  + CADASTRAR PEDIDO GERAL
-                </button>
+                <div className="flex gap-4">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setActiveOrdersTab('ATIVOS')}
+                      className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
+                        activeOrdersTab === 'ATIVOS' ? 'bg-secondary text-white shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-high'
+                      }`}
+                    >
+                      Ativos
+                    </button>
+                    <button
+                      onClick={() => setActiveOrdersTab('FINALIZADOS')}
+                      className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
+                        activeOrdersTab === 'FINALIZADOS' ? 'bg-secondary text-white shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-high'
+                      }`}
+                    >
+                      Finalizados
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {orders.map(order => (
+                {orders.filter(o => activeOrdersTab === 'ATIVOS' ? o.status === 'ATIVO' : o.status === 'FINALIZADO').map(order => (
                   <div
                     key={order.id}
                     onClick={() => {
@@ -461,11 +525,16 @@ export default function Home() {
                     <div>
                       <div className="flex justify-between items-center mb-2">
                         <span className="font-mono text-sm font-black text-primary">{order.id}</span>
-                        <span className={`px-2 py-0.5 rounded-sm text-[10px] font-bold ${
-                          order.priority === 'Alta' ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface-container-high'
-                        }`}>
-                          {order.priority}
-                        </span>
+                        {order.deliveryDate ? (
+                          <span className="px-2 py-0.5 rounded-sm text-[10px] font-bold bg-secondary-container text-on-secondary-container flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[10px]">calendar_today</span>
+                            {order.deliveryDate.split('-').reverse().join('/')}
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-sm text-[10px] font-bold bg-surface-container-high">
+                            Sem Data
+                          </span>
+                        )}
                       </div>
                       <h4 className="text-xs font-bold text-primary">{order.clientName}</h4>
                       <p className="text-[10px] text-outline">{order.location}</p>
@@ -487,6 +556,8 @@ export default function Home() {
           <PedidosDetail
             order={selectedOrder}
             onUpdateOrder={handleUpdateOrder}
+            onFinishOrder={handleFinishOrder}
+            onDeleteOrder={handleDeleteOrder}
             onBack={() => setCurrentScreen('dashboard')}
           />
         );
@@ -512,6 +583,7 @@ export default function Home() {
             onUpdateSupplier={handleUpdateSupplier}
             isAddingNew={isAddingNewSupplier}
             setIsAddingNew={setIsAddingNewSupplier}
+            externalSearchQuery={globalSearch}
           />
         );
 
@@ -539,10 +611,10 @@ export default function Home() {
     }
   };
 
-  if (loading && orders.length === 0) {
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-outline font-bold bg-background">
-        Carregando Módulos Operacionais...
+      <div className="min-h-screen flex w-full bg-background">
+        <LoadingOverlay message="Carregando Módulos Operacionais..." />
       </div>
     );
   }
@@ -583,7 +655,7 @@ export default function Home() {
           <form onSubmit={handleCreateOrderSubmit} className="bg-white max-w-lg w-full rounded-2xl shadow-2xl p-6 border border-outline-variant space-y-4">
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className="text-sm font-black text-[#002046] uppercase flex items-center gap-2">
-                <span className="material-symbols-outlined text-[20px]">add_shopping_cart</span>
+                <span className="material-symbols-outlined notranslate text-[20px]">add_shopping_cart</span>
                 Cadastrar Novo Pedido Geral
               </h3>
               <button 
@@ -591,7 +663,7 @@ export default function Home() {
                 onClick={() => setIsAddOrderModalOpen(false)}
                 className="text-[#74777f] hover:text-primary transition-colors cursor-pointer"
               >
-                <span className="material-symbols-outlined">close</span>
+                <span className="material-symbols-outlined notranslate">close</span>
               </button>
             </div>
 
@@ -633,16 +705,13 @@ export default function Home() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-[#74777f] uppercase mb-1">Prioridade</label>
-                <select
-                  value={newOrderPriority}
-                  onChange={(e) => setNewOrderPriority(e.target.value)}
-                  className="w-full bg-[#f4f3f9] border border-outline-variant rounded-lg p-2.5 font-semibold text-primary focus:outline-none"
-                >
-                  <option value="BAIXA">Baixa</option>
-                  <option value="MEDIA">Média</option>
-                  <option value="ALTA">Alta</option>
-                </select>
+                <label className="block text-outline font-bold mb-1">Data de Entrega Prevista</label>
+                <input 
+                  type="date"
+                  value={newOrderDeliveryDate}
+                  onChange={(e) => setNewOrderDeliveryDate(e.target.value)}
+                  className="w-full bg-[#f4f3f9] border border-outline-variant rounded-lg p-2.5 font-bold text-primary focus:border-secondary outline-hidden" 
+                />
               </div>
             </div>
 

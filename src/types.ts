@@ -62,7 +62,7 @@ export interface Order {
   location: string;
   emissionDate: string;
   deliveryDate: string;
-  priority: 'Alta' | 'Média' | 'Baixa';
+  status?: 'ATIVO' | 'FINALIZADO';
   totalProduced: number;
   totalVolume: number;
   efficiency: number; // e.g. 94.2

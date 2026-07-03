@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
+import LoadingOverlay from './LoadingOverlay';
 
 import AberturaProducao from './AberturaProducao';
 
@@ -219,11 +220,7 @@ export default function ApontamentoScreen({ orders, onStartProduction }: Apontam
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center p-12 text-outline font-bold">
-        Carregando formulário de apontamento...
-      </div>
-    );
+    return <LoadingOverlay message="Carregando formulário de apontamento..." />;
   }
 
   return (
@@ -240,7 +237,7 @@ export default function ApontamentoScreen({ orders, onStartProduction }: Apontam
           }`}>
             <span>{msg.text}</span>
             <button type="button" onClick={() => setMsg({ text: '', type: '' })} className="opacity-70 hover:opacity-100 flex items-center justify-center">
-              <span className="material-symbols-outlined text-[16px]">close</span>
+              <span className="material-symbols-outlined notranslate text-[16px]">close</span>
             </button>
           </div>
         )}
@@ -277,7 +274,7 @@ export default function ApontamentoScreen({ orders, onStartProduction }: Apontam
           {/* Formulário de Registro */}
           <form onSubmit={handleSubmit} className="lg:col-span-8 bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-xs space-y-5">
             <h4 className="text-xs font-black text-primary uppercase tracking-wider mb-2 border-b pb-2 flex items-center gap-2">
-              <span className="material-symbols-outlined text-sm">edit_note</span>
+              <span className="material-symbols-outlined notranslate text-sm">edit_note</span>
               Lançar Ficha de Produção Física
             </h4>
 
@@ -388,7 +385,7 @@ export default function ApontamentoScreen({ orders, onStartProduction }: Apontam
               <button
                 type="submit"
                 disabled={actionLoading}
-                className="bg-[#002046] hover:bg-[#1b365d] text-white text-xs font-bold py-2.5 px-6 rounded-lg transition-all cursor-pointer"
+                className="bg-secondary hover:brightness-95 text-white text-xs font-bold py-2.5 px-6 rounded-lg transition-all cursor-pointer"
               >
                 {actionLoading ? 'Registrando Apontamento...' : 'Salvar Apontamento & Baixar BOM'}
               </button>

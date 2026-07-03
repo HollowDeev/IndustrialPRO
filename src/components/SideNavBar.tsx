@@ -38,7 +38,7 @@ export default function SideNavBar({
                 : 'text-on-surface-variant hover:bg-surface-container-high'
             }`}
           >
-            <span className="material-symbols-outlined">dashboard</span>
+            <span className="material-symbols-outlined notranslate">dashboard</span>
             <span>Dashboard</span>
           </button>
           
@@ -50,7 +50,7 @@ export default function SideNavBar({
                 : 'text-on-surface-variant hover:bg-surface-container-high'
             }`}
           >
-            <span className="material-symbols-outlined">warehouse</span>
+            <span className="material-symbols-outlined notranslate">warehouse</span>
             <span>Almoxarifado</span>
           </button>
         </div>
@@ -63,10 +63,10 @@ export default function SideNavBar({
             className="w-full flex items-center justify-between px-4 py-2 text-xs font-black text-outline uppercase tracking-wider hover:bg-surface-container-high rounded-lg transition-all duration-200 text-left"
           >
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[18px]">inventory_2</span>
+              <span className="material-symbols-outlined notranslate text-[18px]">inventory_2</span>
               <span>Cadastros</span>
             </div>
-            <span className="material-symbols-outlined text-xs">
+            <span className="material-symbols-outlined notranslate text-xs">
               {cadastrosOpen ? 'expand_less' : 'expand_more'}
             </span>
           </button>
@@ -82,7 +82,7 @@ export default function SideNavBar({
                     : 'text-on-surface-variant hover:bg-surface-container-high'
                 }`}
               >
-                <span className="material-symbols-outlined text-[20px]">category</span>
+                <span className="material-symbols-outlined notranslate text-[20px]">category</span>
                 <span>Famílias & SKUs</span>
               </button>
 
@@ -95,7 +95,7 @@ export default function SideNavBar({
                     : 'text-on-surface-variant hover:bg-surface-container-high'
                 }`}
               >
-                <span className="material-symbols-outlined text-[20px]">science</span>
+                <span className="material-symbols-outlined notranslate text-[20px]">science</span>
                 <span>Fórmulas (BOM)</span>
               </button>
 
@@ -108,7 +108,7 @@ export default function SideNavBar({
                     : 'text-on-surface-variant hover:bg-surface-container-high'
                 }`}
               >
-                <span className="material-symbols-outlined text-[20px]">badge</span>
+                <span className="material-symbols-outlined notranslate text-[20px]">badge</span>
                 <span>Funcionários</span>
               </button>
 
@@ -121,7 +121,7 @@ export default function SideNavBar({
                     : 'text-on-surface-variant hover:bg-surface-container-high'
                 }`}
               >
-                <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: currentScreen === 'fornecedores' ? "'FILL' 1" : undefined }}>
+                <span className="material-symbols-outlined notranslate text-[20px]" style={{ fontVariationSettings: currentScreen === 'fornecedores' ? "'FILL' 1" : undefined }}>
                   factory
                 </span>
                 <span>Fornecedores</span>
@@ -136,7 +136,7 @@ export default function SideNavBar({
                     : 'text-on-surface-variant hover:bg-surface-container-high'
                 }`}
               >
-                <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: currentScreen === 'materias-primas' ? "'FILL' 1" : undefined }}>
+                <span className="material-symbols-outlined notranslate text-[20px]" style={{ fontVariationSettings: currentScreen === 'materias-primas' ? "'FILL' 1" : undefined }}>
                   layers
                 </span>
                 <span>Matérias Primas</span>
@@ -153,10 +153,10 @@ export default function SideNavBar({
             className="w-full flex items-center justify-between px-4 py-2 text-xs font-black text-outline uppercase tracking-wider hover:bg-surface-container-high rounded-lg transition-all duration-200 text-left"
           >
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[18px]">precision_manufacturing</span>
+              <span className="material-symbols-outlined notranslate text-[18px]">precision_manufacturing</span>
               <span>Produção</span>
             </div>
-            <span className="material-symbols-outlined text-xs">
+            <span className="material-symbols-outlined notranslate text-xs">
               {producaoOpen ? 'expand_less' : 'expand_more'}
             </span>
           </button>
@@ -172,7 +172,7 @@ export default function SideNavBar({
                     : 'text-on-surface-variant hover:bg-surface-container-high'
                 }`}
               >
-                <span className="material-symbols-outlined text-[20px]">production_quantity_limits</span>
+                <span className="material-symbols-outlined notranslate text-[20px]">production_quantity_limits</span>
                 <span>Pedidos</span>
               </button>
 
@@ -185,7 +185,7 @@ export default function SideNavBar({
                     : 'text-on-surface-variant hover:bg-surface-container-high'
                 }`}
               >
-                <span className="material-symbols-outlined text-[20px]">edit_note</span>
+                <span className="material-symbols-outlined notranslate text-[20px]">edit_note</span>
                 <span>Apontamento Diário</span>
               </button>
             </div>
@@ -233,9 +233,9 @@ export default function SideNavBar({
                   }
                 }
               }}
-              className="w-full bg-[#002046] hover:bg-[#1b365d] hover:scale-[0.98] text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 text-xs transition-all tracking-wider select-none shadow-sm cursor-pointer border border-transparent"
+              className="w-full bg-secondary hover:brightness-95 hover:scale-[0.98] text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 text-xs transition-all tracking-wider select-none shadow-sm cursor-pointer border border-transparent"
             >
-              <span className="material-symbols-outlined text-[18px]">
+              <span className="material-symbols-outlined notranslate text-[18px]">
                 {action.icon}
               </span>
               <span>{action.text}</span>

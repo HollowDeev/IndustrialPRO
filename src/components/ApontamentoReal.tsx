@@ -142,7 +142,7 @@ export default function ApontamentoReal() {
                   : 'bg-primary text-white hover:bg-primary-container'
               }`}
             >
-              <span className="material-symbols-outlined text-[18px]">
+              <span className="material-symbols-outlined notranslate text-[18px]">
                 {machineStatus === 'Running' ? 'warning' : 'play_arrow'}
               </span>
               {machineStatus === 'Running' ? 'SOLICITAR PARADA DE MÁQUINA' : 'RETOMAR PRODUÇÃO'}
@@ -185,7 +185,7 @@ export default function ApontamentoReal() {
           {/* Section title & Header */}
           <div className="border-b border-surface-container pb-4">
             <h3 className="text-lg font-bold text-primary flex items-center gap-2">
-              <span className="material-symbols-outlined text-secondary">assignment_late</span>
+              <span className="material-symbols-outlined notranslate text-secondary">assignment_late</span>
               Registrar Incidente de Parada
             </h3>
             <p className="text-xs text-outline mt-1">
@@ -230,7 +230,7 @@ export default function ApontamentoReal() {
                 type="submit"
                 className="bg-primary hover:bg-primary-container text-white px-5 py-2.5 rounded-lg text-xs font-bold flex items-center gap-2 shadow-xs cursor-pointer select-none"
               >
-                <span className="material-symbols-outlined text-[18px]">add_task</span>
+                <span className="material-symbols-outlined notranslate text-[18px]">add_task</span>
                 LANÇAR APONTAMENTO
               </button>
             </div>
@@ -281,7 +281,7 @@ export default function ApontamentoReal() {
                             className="p-1 text-outline hover:text-error rounded-full hover:bg-error-container/10 transition-colors cursor-pointer"
                             title="Remover Registro"
                           >
-                            <span className="material-symbols-outlined text-[16px]">delete</span>
+                            <span className="material-symbols-outlined notranslate text-[16px]">delete</span>
                           </button>
                         </td>
                       </tr>

@@ -75,7 +75,7 @@ export default function AberturaProducao({ orders, onStartProduction }: Abertura
       {/* Success Banner */}
       {successMsg && (
         <div className="bg-tertiary-fixed text-on-tertiary-fixed p-4 rounded-xl flex items-center gap-3 shadow-sm border border-tertiary-fixed-dim animate-bounce">
-          <span className="material-symbols-outlined text-[28px]">verified</span>
+          <span className="material-symbols-outlined notranslate text-[28px]">verified</span>
           <span className="text-sm font-bold">{successMsg}</span>
         </div>
       )}
@@ -86,7 +86,7 @@ export default function AberturaProducao({ orders, onStartProduction }: Abertura
         <div className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-xs lg:col-span-5 space-y-5">
           <div className="border-b border-surface-container pb-4">
             <h3 className="text-lg font-bold text-primary flex items-center gap-2">
-              <span className="material-symbols-outlined text-secondary">tune</span>
+              <span className="material-symbols-outlined notranslate text-secondary">tune</span>
               1. Setup Operacional e Linha
             </h3>
             <p className="text-xs text-outline mt-1">Insira os dados iniciais do turno de fabricação</p>
@@ -212,7 +212,7 @@ export default function AberturaProducao({ orders, onStartProduction }: Abertura
                       onClick={() => handleRemoveMember(member)}
                       className="text-outline hover:text-error cursor-pointer"
                     >
-                      <span className="material-symbols-outlined text-[14px]">close</span>
+                      <span className="material-symbols-outlined notranslate text-[14px]">close</span>
                     </button>
                   </span>
                 ))}
@@ -226,7 +226,7 @@ export default function AberturaProducao({ orders, onStartProduction }: Abertura
           <div className="border-b border-surface-container pb-4 flex justify-between items-center">
             <div>
               <h3 className="text-lg font-bold text-primary flex items-center gap-2">
-                <span className="material-symbols-outlined text-secondary">checklist_rtl</span>
+                <span className="material-symbols-outlined notranslate text-secondary">checklist_rtl</span>
                 2. Inspeção de Pré-Requisitos e Setup
               </h3>
               <p className="text-xs text-outline mt-1">Instruções regulamentares de qualidade antes do start da máquina</p>
@@ -251,7 +251,7 @@ export default function AberturaProducao({ orders, onStartProduction }: Abertura
                   : 'bg-surface-bright border-outline/10 text-on-surface-variant hover:bg-surface-container-low'
               }`}
             >
-              <span className={`material-symbols-outlined text-[22px] shrink-0 ${checks.limpeza ? 'text-on-tertiary-container' : 'text-outline'}`}>
+              <span className={`material-symbols-outlined notranslate text-[22px] shrink-0 ${checks.limpeza ? 'text-on-tertiary-container' : 'text-outline'}`}>
                 {checks.limpeza ? 'task_alt' : 'radio_button_unchecked'}
               </span>
               <div>
@@ -268,7 +268,7 @@ export default function AberturaProducao({ orders, onStartProduction }: Abertura
                   : 'bg-surface-bright border-outline/10 text-on-surface-variant hover:bg-surface-container-low'
               }`}
             >
-              <span className={`material-symbols-outlined text-[22px] shrink-0 ${checks.residualAnterior ? 'text-on-tertiary-container' : 'text-outline'}`}>
+              <span className={`material-symbols-outlined notranslate text-[22px] shrink-0 ${checks.residualAnterior ? 'text-on-tertiary-container' : 'text-outline'}`}>
                 {checks.residualAnterior ? 'task_alt' : 'radio_button_unchecked'}
               </span>
               <div>
@@ -285,7 +285,7 @@ export default function AberturaProducao({ orders, onStartProduction }: Abertura
                   : 'bg-surface-bright border-outline/10 text-on-surface-variant hover:bg-surface-container-low'
               }`}
             >
-              <span className={`material-symbols-outlined text-[22px] shrink-0 ${checks.temperaturas ? 'text-on-tertiary-container' : 'text-outline'}`}>
+              <span className={`material-symbols-outlined notranslate text-[22px] shrink-0 ${checks.temperaturas ? 'text-on-tertiary-container' : 'text-outline'}`}>
                 {checks.temperaturas ? 'task_alt' : 'radio_button_unchecked'}
               </span>
               <div>
@@ -302,7 +302,7 @@ export default function AberturaProducao({ orders, onStartProduction }: Abertura
                   : 'bg-surface-bright border-outline/10 text-on-surface-variant hover:bg-surface-container-low'
               }`}
             >
-              <span className={`material-symbols-outlined text-[22px] shrink-0 ${checks.rotacaoRosca ? 'text-on-tertiary-container' : 'text-outline'}`}>
+              <span className={`material-symbols-outlined notranslate text-[22px] shrink-0 ${checks.rotacaoRosca ? 'text-on-tertiary-container' : 'text-outline'}`}>
                 {checks.rotacaoRosca ? 'task_alt' : 'radio_button_unchecked'}
               </span>
               <div>
@@ -319,7 +319,7 @@ export default function AberturaProducao({ orders, onStartProduction }: Abertura
                   : 'bg-surface-bright border-outline/10 text-on-surface-variant hover:bg-surface-container-low'
               }`}
             >
-              <span className={`material-symbols-outlined text-[22px] shrink-0 ${checks.alimentacaoMaquina ? 'text-on-tertiary-container' : 'text-outline'}`}>
+              <span className={`material-symbols-outlined notranslate text-[22px] shrink-0 ${checks.alimentacaoMaquina ? 'text-on-tertiary-container' : 'text-outline'}`}>
                 {checks.alimentacaoMaquina ? 'task_alt' : 'radio_button_unchecked'}
               </span>
               <div>
@@ -336,7 +336,7 @@ export default function AberturaProducao({ orders, onStartProduction }: Abertura
                   : 'bg-surface-bright border-outline/10 text-on-surface-variant hover:bg-surface-container-low'
               }`}
             >
-              <span className={`material-symbols-outlined text-[22px] shrink-0 ${checks.bagPosicionado ? 'text-on-tertiary-container' : 'text-outline'}`}>
+              <span className={`material-symbols-outlined notranslate text-[22px] shrink-0 ${checks.bagPosicionado ? 'text-on-tertiary-container' : 'text-outline'}`}>
                 {checks.bagPosicionado ? 'task_alt' : 'radio_button_unchecked'}
               </span>
               <div>
@@ -353,7 +353,7 @@ export default function AberturaProducao({ orders, onStartProduction }: Abertura
                   : 'bg-surface-bright border-outline/10 text-on-surface-variant hover:bg-surface-container-low'
               }`}
             >
-              <span className={`material-symbols-outlined text-[22px] shrink-0 ${checks.operadorOk ? 'text-on-tertiary-container' : 'text-outline'}`}>
+              <span className={`material-symbols-outlined notranslate text-[22px] shrink-0 ${checks.operadorOk ? 'text-on-tertiary-container' : 'text-outline'}`}>
                 {checks.operadorOk ? 'task_alt' : 'radio_button_unchecked'}
               </span>
               <div>
@@ -368,12 +368,12 @@ export default function AberturaProducao({ orders, onStartProduction }: Abertura
             <div className="text-xs text-outline">
               {!allChecked ? (
                 <span className="text-secondary font-bold flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[16px]">info</span>
+                  <span className="material-symbols-outlined notranslate text-[16px]">info</span>
                   Ative todos os pré-requisitos para liberar o start.
                 </span>
               ) : (
                 <span className="text-on-tertiary-container font-semibold flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                  <span className="material-symbols-outlined notranslate text-[16px]">check_circle</span>
                   Pronto! Equipamento e equipe inspecionados.
                 </span>
               )}
@@ -388,7 +388,7 @@ export default function AberturaProducao({ orders, onStartProduction }: Abertura
                   : 'bg-surface-container-highest text-outline cursor-not-allowed'
               }`}
             >
-              <span className="material-symbols-outlined text-[20px]">power_settings_new</span>
+              <span className="material-symbols-outlined notranslate text-[20px]">power_settings_new</span>
               INICIAR TURNO DE PRODUÇÃO
             </button>
           </div>
