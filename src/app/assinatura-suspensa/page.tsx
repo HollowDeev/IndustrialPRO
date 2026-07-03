@@ -3,6 +3,7 @@
 import React from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
+import Footer from '@/components/Footer'
 
 export default function AssinaturaSuspensaPage() {
   const router = useRouter()
@@ -14,7 +15,8 @@ export default function AssinaturaSuspensaPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8f9fa] px-4 select-none">
+    <div className="min-h-screen flex flex-col justify-between bg-[#f8f9fa] relative select-none">
+      <div className="flex-1 flex items-center justify-center px-4 py-12 z-10">
       <div className="max-w-md w-full bg-white rounded-3xl border border-[#ffdad6] p-8 shadow-xs flex flex-col items-center">
         {/* Warning Icon */}
         <div className="w-16 h-16 rounded-full bg-[#ffdad6] flex items-center justify-center text-[#93000a] mb-6">
@@ -53,6 +55,8 @@ export default function AssinaturaSuspensaPage() {
           </p>
         </div>
       </div>
+      </div>
+      <Footer />
     </div>
   )
 }

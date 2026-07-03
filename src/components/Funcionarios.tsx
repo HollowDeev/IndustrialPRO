@@ -20,6 +20,7 @@ import {
   UserPlus
 } from 'lucide-react';
 import { createClient } from '../utils/supabase/client';
+import { useToast } from '../contexts/ToastContext';
 import LoadingOverlay from './LoadingOverlay';
 
 export default function Funcionarios({ 
@@ -29,6 +30,7 @@ export default function Funcionarios({
   externalSearchQuery?: string;
   triggerAddNew?: number;
 }) {
+  const { addToast } = useToast();
   const supabase = createClient();
 
   useEffect(() => {
@@ -219,7 +221,7 @@ export default function Funcionarios({
   const handleCreateEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEmp.id || !newEmp.firstName || !newEmp.lastName || !newEmp.role) {
-      alert('Por favor, preencha o Código, Nome, Sobrenome e Função.');
+      addToast('Por favor, preencha o Código, Nome, Sobrenome e Função.', 'warning');
       return;
     }
 
@@ -256,7 +258,7 @@ export default function Funcionarios({
     });
 
     if (error) {
-      alert(`Erro ao criar funcionário: ${error.message}`);
+      addToast(`Erro ao criar funcionário: ${error.message}`, 'error');
     } else {
       setIsAddingNew(false);
       await fetchEmployees();
@@ -268,7 +270,7 @@ export default function Funcionarios({
     if (!editForm) return;
 
     if (!editForm.firstName || !editForm.lastName || !editForm.role) {
-      alert('Por favor, preencha Nome, Sobrenome e Função.');
+      addToast('Por favor, preencha Nome, Sobrenome e Função.', 'warning');
       return;
     }
 
@@ -300,7 +302,7 @@ export default function Funcionarios({
       .eq('id', editForm.id);
 
     if (error) {
-      alert(`Erro ao atualizar funcionário: ${error.message}`);
+      addToast(`Erro ao atualizar funcionário: ${error.message}`, 'error');
     } else {
       setIsEditing(false);
       await fetchEmployees();
@@ -311,7 +313,7 @@ export default function Funcionarios({
     if (confirm('Deseja realmente excluir este funcionário?')) {
       const { error } = await supabase.from('funcionarios').delete().eq('id', id);
       if (error) {
-        alert(`Erro ao excluir: ${error.message}`);
+        addToast(`Erro ao excluir: ${error.message}`, 'error');
       } else {
         await fetchEmployees();
       }
@@ -354,7 +356,7 @@ export default function Funcionarios({
       .eq('id', currentEmployee.id);
 
     if (error) {
-      alert(`Erro ao salvar ponto: ${error.message}`);
+      addToast(`Erro ao salvar ponto: ${error.message}`, 'error');
     } else {
       await fetchEmployees();
       setNewPunct(prev => ({
@@ -386,7 +388,7 @@ export default function Funcionarios({
         .eq('id', currentEmployee.id);
 
       if (error) {
-        alert(`Erro ao remover ponto: ${error.message}`);
+        addToast(`Erro ao remover ponto: ${error.message}`, 'error');
       } else {
         await fetchEmployees();
       }
@@ -429,7 +431,7 @@ export default function Funcionarios({
         .eq('id', currentEmployee.id);
 
       if (error) {
-        alert(`Erro ao atualizar qualidades: ${error.message}`);
+        addToast(`Erro ao atualizar qualidades: ${error.message}`, 'error');
       } else {
         await fetchEmployees();
       }

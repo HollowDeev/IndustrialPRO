@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import Logo from '@/components/Logo'
 import LoadingOverlay from '@/components/LoadingOverlay'
+import Footer from '@/components/Footer'
 
 interface Empresa {
   id: string
@@ -559,6 +560,9 @@ export default function PainelGestorHelpe() {
             </div>
           </div>
         )}
+        <div className="mt-8">
+          <Footer />
+        </div>
       </main>
     </div>
   )

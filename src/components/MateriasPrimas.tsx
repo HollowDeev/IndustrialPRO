@@ -19,6 +19,7 @@ import {
   Award
 } from 'lucide-react';
 import { createClient } from '../utils/supabase/client';
+import { useToast } from '../contexts/ToastContext';
 
 interface MateriasPrimasProps {
   suppliers: Supplier[];
@@ -26,6 +27,7 @@ interface MateriasPrimasProps {
 }
 
 export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPrimasProps) {
+  const { addToast } = useToast();
   const supabase = createClient();
 
   const [materials, setMaterials] = useState<RawMaterial[]>([]);
@@ -170,12 +172,12 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
   const handleCreateMaterial = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMat.id || !newMat.description || !newMat.supplierId) {
-      alert('Por favor, preencha o Código, Descrição e Fornecedor Principal.');
+      addToast('Por favor, preencha o Código, Descrição e Fornecedor Principal.', 'warning');
       return;
     }
 
     if (materials.some(m => m.id === newMat.id)) {
-      alert(`Já existe uma matéria-prima cadastrada com o código ${newMat.id}.`);
+      addToast(`Já existe uma matéria-prima cadastrada com o código ${newMat.id}.`, 'warning');
       return;
     }
 
@@ -208,7 +210,7 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
       });
 
     if (error) {
-      alert(`Erro ao cadastrar matéria-prima: ${error.message}`);
+      addToast(`Erro ao cadastrar matéria-prima: ${error.message}`, 'error');
     } else {
       setIsAddingNew(false);
       await fetchMaterials();
@@ -221,7 +223,7 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
     if (!editForm) return;
 
     if (!editForm.description || !editForm.supplierId) {
-      alert('Por favor, preencha a Descrição e o Fornecedor Principal.');
+      addToast('Por favor, preencha a Descrição e o Fornecedor Principal.', 'warning');
       return;
     }
 
@@ -250,7 +252,7 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
       .eq('id', (original as any).realId);
 
     if (error) {
-      alert(`Erro ao atualizar insumo: ${error.message}`);
+      addToast(`Erro ao atualizar insumo: ${error.message}`, 'error');
     } else {
       setIsEditing(false);
       await fetchMaterials();
@@ -268,7 +270,7 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
         .eq('id', (original as any).realId);
 
       if (error) {
-        alert(`Erro ao excluir insumo: ${error.message}`);
+        addToast(`Erro ao excluir insumo: ${error.message}`, 'error');
       } else {
         await fetchMaterials();
       }
@@ -284,7 +286,7 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
     if (!original || !(original as any).realId) return;
 
     if (currentMaterial.supplierRankings.some(r => r.supplierId === newRanking.supplierId)) {
-      alert('Já existe um ranking cadastrado para este fornecedor nesta matéria-prima.');
+      addToast('Já existe um ranking cadastrado para este fornecedor nesta matéria-prima.', 'warning');
       return;
     }
 
@@ -313,7 +315,7 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
       .eq('id', (original as any).realId);
 
     if (error) {
-      alert(`Erro ao salvar ranking: ${error.message}`);
+      addToast(`Erro ao salvar ranking: ${error.message}`, 'error');
     } else {
       setIsRankingModalOpen(false);
       setNewRanking({
@@ -350,7 +352,7 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
         .eq('id', (original as any).realId);
 
       if (error) {
-        alert(`Erro ao remover ranking: ${error.message}`);
+        addToast(`Erro ao remover ranking: ${error.message}`, 'error');
       } else {
         await fetchMaterials();
       }

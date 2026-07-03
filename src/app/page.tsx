@@ -17,11 +17,14 @@ import BOMScreen from '../components/BOMScreen';
 import ConfiguracoesScreen from '../components/ConfiguracoesScreen';
 import EstoqueScreen from '../components/EstoqueScreen';
 import LoadingOverlay from '../components/LoadingOverlay';
+import Footer from '../components/Footer';
 import { createClient } from '../utils/supabase/client';
+import { useToast } from '../contexts/ToastContext';
 
 export default function Home() {
   const supabase = createClient();
   
+  const { addToast } = useToast();
   // Screens: 'dashboard' | 'estoque' | 'pedidos' | 'pedido-detail' | 'apontamento' | 'reprogramacao' | 'fornecedores' | 'familias-skus' | 'bom-formulas'
   const [currentScreen, setCurrentScreen] = useState<string>('dashboard');
   
@@ -245,7 +248,7 @@ export default function Home() {
     setNewOrderCode(newCode);
     setNewOrderClient('');
     setNewOrderLocation('');
-    setNewOrderPriority('MEDIA');
+    setNewOrderDeliveryDate('');
     if (dbSKUs.length > 0) {
       setNewOrderSKUId(dbSKUs[0].id);
     } else {
@@ -258,7 +261,7 @@ export default function Home() {
   const handleCreateOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newOrderCode || !newOrderClient || !newOrderSKUId) {
-      alert('Por favor, preencha os campos obrigatórios.');
+        addToast('Por favor, preencha os campos obrigatórios.', 'warning');
       return;
     }
 
@@ -282,7 +285,7 @@ export default function Home() {
       .single();
 
     if (error) {
-      alert(`Erro ao criar pedido: ${error.message}`);
+        addToast(`Erro ao criar pedido: ${error.message}`, 'error');
       return;
     }
 
@@ -304,7 +307,7 @@ export default function Home() {
   const handleFinishOrder = async (orderId: string) => {
     const { error } = await supabase.from('pedidos').update({ status: 'FINALIZADO' }).eq('codigo', orderId);
     if (error) {
-      alert('Erro ao finalizar pedido: ' + error.message);
+      addToast('Erro ao finalizar pedido: ' + error.message, 'error');
       return;
     }
     await fetchData();
@@ -328,7 +331,7 @@ export default function Home() {
     // Exclui pedido
     const { error } = await supabase.from('pedidos').delete().eq('codigo', order.id);
     if (error) {
-      alert('Erro ao excluir pedido: ' + error.message);
+      addToast('Erro ao excluir pedido: ' + error.message, 'error');
       return;
     }
 
@@ -368,7 +371,7 @@ export default function Home() {
       });
 
     if (error) {
-      alert(`Erro ao salvar fornecedor: ${error.message}`);
+      addToast(`Erro ao salvar fornecedor: ${error.message}`, 'error');
     } else {
       await fetchData();
     }
@@ -400,7 +403,7 @@ export default function Home() {
       .eq('id', updatedSupplier.id);
 
     if (error) {
-      alert(`Erro ao atualizar fornecedor: ${error.message}`);
+      addToast(`Erro ao atualizar fornecedor: ${error.message}`, 'error');
     } else {
       await fetchData();
     }
@@ -647,6 +650,8 @@ export default function Home() {
         <div className="flex-1 p-8 overflow-y-auto w-full max-w-7xl mx-auto space-y-6">
           {renderActiveScreen()}
         </div>
+        
+        <Footer />
       </main>
 
       {/* ================= MODAL DE CADASTRO DE NOVO PEDIDO ================= */}

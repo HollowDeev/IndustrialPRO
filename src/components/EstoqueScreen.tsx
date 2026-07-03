@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../contexts/ToastContext';
 import { createClient } from '../utils/supabase/client';
 import LoadingOverlay from './LoadingOverlay';
 
@@ -34,6 +35,7 @@ interface Fornecedor {
 }
 
 export default function EstoqueScreen() {
+  const { addToast } = useToast();
   const supabase = createClient();
   const [items, setItems] = useState<EstoqueItem[]>([]);
   const [entradas, setEntradas] = useState<EntradaEstoque[]>([]);
@@ -131,7 +133,7 @@ export default function EstoqueScreen() {
     }
     
     if (!selectedInsumoId || !selectedFornecedorId || !quantidade || !precoUnitario || !finalDate) {
-      alert("Preencha todos os campos.");
+      addToast("Preencha todos os campos.", "warning");
       return;
     }
 
@@ -151,7 +153,7 @@ export default function EstoqueScreen() {
     }).select().single();
 
     if (error) {
-      alert(`Erro ao registrar entrada: ${error.message}`);
+      addToast(`Erro ao registrar entrada: ${error.message}`, "error");
       return;
     }
 
@@ -161,7 +163,7 @@ export default function EstoqueScreen() {
         p_entrada_id: inserted.id
       });
       if (rpcError) {
-        alert(`Erro ao processar o recebimento automático: ${rpcError.message}`);
+        addToast(`Erro ao processar o recebimento automático: ${rpcError.message}`, "error");
       }
     }
 
@@ -202,7 +204,7 @@ export default function EstoqueScreen() {
       setConfirmDeliveryId(null);
       fetchData();
     } catch (err: any) {
-      alert(`Erro ao registrar recebimento: ${err.message}`);
+      addToast(`Erro ao registrar recebimento: ${err.message}`, "error");
     }
   };
 

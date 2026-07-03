@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Supplier, SupplierDocument } from '../types';
+import { Supplier } from '../types';
+import { useToast } from '../contexts/ToastContext';
 
 interface FornecedoresProps {
   suppliers: Supplier[];
@@ -18,6 +19,7 @@ export default function Fornecedores({
   setIsAddingNew,
   externalSearchQuery = ''
 }: FornecedoresProps) {
+  const { addToast } = useToast();
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -57,7 +59,7 @@ export default function Fornecedores({
   const handleCreateSupplier = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim() || !newCnpj.trim() || newCategories.length === 0) {
-      alert('Por favor, preencha o Nome, CNPJ e selecione pelo menos uma Categoria!');
+      addToast('Por favor, preencha o Nome, CNPJ e selecione pelo menos uma Categoria!', 'warning');
       return;
     }
 

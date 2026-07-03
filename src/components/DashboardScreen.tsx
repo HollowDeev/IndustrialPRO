@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { Order, DailyProductionSetup } from '../types';
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '../utils/supabase/client';
+import LoadingOverlay from './LoadingOverlay';
+import { useToast } from '../contexts/ToastContext';
 
 interface DashboardScreenProps {
   orders: Order[];
@@ -72,6 +74,7 @@ export default function DashboardScreen({
   userName,
   lowStockCount: initialLowStockCount = 0
 }: DashboardScreenProps) {
+  const { addToast } = useToast();
   const supabase = createClient();
 
   const [loading, setLoading] = useState(true);
@@ -283,9 +286,9 @@ export default function DashboardScreen({
         });
 
       if (error) {
-        alert(`Erro ao criar ordem de compra: ${error.message}`);
+        addToast(`Erro ao criar ordem de compra: ${error.message}`, 'error');
       } else {
-        alert(`Ordem de compra emitida com sucesso para o fornecedor: ${selectedSupplierName}!`);
+        addToast(`Ordem de compra emitida com sucesso para o fornecedor: ${selectedSupplierName}!`, 'success');
         setIsPurchaseModalOpen(false);
         await loadDashboardData();
       }

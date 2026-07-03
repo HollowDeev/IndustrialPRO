@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Order, OrderLine } from '../types';
+import { useToast } from '../contexts/ToastContext';
 import PDFExportButtons from './pdf/PDFExportButtons';
 
 interface PedidosDetailProps {
@@ -11,6 +12,7 @@ interface PedidosDetailProps {
 }
 
 export default function PedidosDetail({ order, onUpdateOrder, onFinishOrder, onDeleteOrder, onBack }: PedidosDetailProps) {
+  const { addToast } = useToast();
   // Line item adder form states
   const [newProduct, setNewProduct] = useState('');
   const [newMeasure, setNewMeasure] = useState('');
@@ -31,7 +33,7 @@ export default function PedidosDetail({ order, onUpdateOrder, onFinishOrder, onD
   const handleAddLineItem = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProduct.trim()) {
-      alert('Preencha a descrição do produto!');
+      addToast('Preencha a descrição do produto!', 'warning');
       return;
     }
 

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createClient } from '../utils/supabase/client';
+import { useShortcut } from '../hooks/useShortcut';
 
 interface TopAppBarProps {
   currentScreen: string;
@@ -17,6 +18,14 @@ export default function TopAppBar({
   const [notifications, setNotifications] = useState<{ id: string; text: string; type: string }[]>([]);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useShortcut('f', () => {
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  });
 
   const supabase = createClient();
 
@@ -183,12 +192,16 @@ export default function TopAppBar({
             search
           </span>
           <input
+            ref={searchInputRef}
             type="text"
             placeholder="Pesquisar..."
             value={searchValue}
             onChange={handleSearchChange}
-            className="w-full bg-surface-container-low text-primary text-sm px-10 py-2.5 rounded-full border border-outline/20 outline-hidden focus:border-secondary focus:ring-1 focus:ring-secondary transition-all"
+            className="w-full bg-surface-container-low text-primary text-sm pl-10 pr-12 py-2.5 rounded-full border border-outline/20 outline-hidden focus:border-secondary focus:ring-1 focus:ring-secondary transition-all"
           />
+          <div className="absolute right-2 top-2">
+            <kbd className="text-[10px] text-outline bg-surface border border-outline-variant rounded px-1.5 py-0.5 pointer-events-none">F</kbd>
+          </div>
         </div>
 
         {/* Dynamic Alerts Indicator with Dropdown */}
