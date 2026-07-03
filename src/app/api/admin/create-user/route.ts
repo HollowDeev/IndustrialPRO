@@ -12,8 +12,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
     }
 
-    // Buscar no banco se ele é super admin
-    const { data: profile, error: profileError } = await supabase
+    // 3. Inicializar o cliente Admin do Supabase (com a Service Role Key do .env.local)
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+
+    if (!serviceRoleKey) {
+      return NextResponse.json({ error: 'Configuração do servidor ausente: SUPABASE_SERVICE_ROLE_KEY não configurada no .env.local' }, { status: 500 })
+    }
+
+    const adminClient = createSupabaseClient(supabaseUrl!, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+
+    // Buscar no banco se ele é super admin ignorando RLS
+    const { data: profile, error: profileError } = await adminClient
       .from('usuarios')
       .select('is_super_admin')
       .eq('id', user.id)
@@ -30,20 +45,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Campos obrigatórios ausentes' }, { status: 400 })
     }
 
-    // 3. Inicializar o cliente Admin do Supabase (com a Service Role Key do .env.local)
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-
-    if (!serviceRoleKey) {
-      return NextResponse.json({ error: 'Configuração do servidor ausente: SUPABASE_SERVICE_ROLE_KEY não configurada no .env.local' }, { status: 500 })
-    }
-
-    const adminClient = createSupabaseClient(supabaseUrl!, serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    })
+    // AdminClient já foi instanciado acima
 
     // 4. Criar o usuário no auth.users
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({

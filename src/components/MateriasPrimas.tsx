@@ -63,9 +63,15 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
 
   // Fetch from Database
   const fetchMaterials = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: profile } = await supabase.from('usuarios').select('empresa_id').eq('id', user.id).single();
+    if (!profile?.empresa_id) return;
+
     const { data: dbInsumos } = await supabase
       .from('insumos')
       .select('*')
+      .eq('empresa_id', profile.empresa_id)
       .order('nome');
 
     if (dbInsumos) {

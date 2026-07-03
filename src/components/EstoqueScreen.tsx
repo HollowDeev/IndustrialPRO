@@ -34,7 +34,7 @@ interface Fornecedor {
   razao_social: string;
 }
 
-export default function EstoqueScreen() {
+export default function EstoqueScreen({ triggerAddNew = 0 }: { triggerAddNew?: number }) {
   const { addToast } = useToast();
   const supabase = createClient();
   const [items, setItems] = useState<EstoqueItem[]>([]);
@@ -61,13 +61,28 @@ export default function EstoqueScreen() {
   // Immediate entry flag
   const [isImmediate, setIsImmediate] = useState(false);
 
-  const fetchData = async () => {
+  useEffect(() => {
+    if (triggerAddNew > 0) {
+      setIsAddModalOpen(true);
+    }
+  }, [triggerAddNew]);
+
+    const fetchData = async () => {
     try {
       setLoading(true);
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      const { data: profile } = await supabase.from('usuarios').select('empresa_id').eq('id', user.id).single();
+      const empresaId = profile?.empresa_id;
+      if (!empresaId) return;
+
       // Fetch Estoque (Insumos)
       const { data: estoqueData, error: estoqueError } = await supabase
         .from('v_estoque_valorizado')
         .select('*')
+        .eq('empresa_id', empresaId)
         .order('categoria')
         .order('nome');
       if (estoqueError) throw estoqueError;
@@ -81,6 +96,7 @@ export default function EstoqueScreen() {
           insumos (nome, unidade_medida, categoria),
           fornecedores (nome)
         `)
+        .eq('empresa_id', empresaId)
         .order('created_at', { ascending: false });
       if (entradasError) throw entradasError;
       setEntradas(entradasData as any[]);
@@ -89,6 +105,7 @@ export default function EstoqueScreen() {
       const { data: fornData, error: fornError } = await supabase
         .from('fornecedores')
         .select('id, nome, status')
+        .eq('empresa_id', empresaId)
         .eq('status', 'Ativo')
         .order('nome');
       if (fornError) throw fornError;
@@ -230,14 +247,6 @@ export default function EstoqueScreen() {
           <h1 className="text-2xl font-bold text-on-surface">Almoxarifado & Estoque</h1>
           <p className="text-on-surface-variant text-sm mt-1">Gestão de inventário e recebimento de cargas</p>
         </div>
-        
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="bg-secondary hover:brightness-95 text-white text-xs font-bold px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2"
-        >
-          <span className="material-symbols-outlined notranslate text-[18px]">local_shipping</span>
-          NOVA ENTRADA
-        </button>
       </div>
 
       {/* TABS NAVIGATION */}

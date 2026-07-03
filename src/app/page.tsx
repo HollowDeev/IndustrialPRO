@@ -43,6 +43,7 @@ export default function Home() {
   const [triggerAddEmployee, setTriggerAddEmployee] = useState(0);
   const [triggerAddMaterial, setTriggerAddMaterial] = useState(0);
   const [triggerAddFamily, setTriggerAddFamily] = useState(0);
+  const [triggerAddEstoque, setTriggerAddEstoque] = useState(0);
   
   // States para Modal de Novo Pedido
   const [isAddOrderModalOpen, setIsAddOrderModalOpen] = useState(false);
@@ -60,10 +61,45 @@ export default function Home() {
     try {
       setLoading(true);
 
+      // 1. Validar Autenticação e Perfil Primeiro
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from('usuarios')
+        .select('nome, cargo, is_super_admin, empresa_id')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (profile?.is_super_admin) {
+        router.push('/painel-gestor-helpe');
+        return;
+      }
+
+      const empresaId = profile?.empresa_id;
+      if (!empresaId) {
+        // Usuário sem empresa, não pode carregar os dados
+        setLoading(false);
+        return;
+      }
+
+      if (profile) {
+        setUserProfile(profile);
+      } else {
+        setUserProfile({
+          nome: user.user_metadata?.nome || 'Administrador',
+          cargo: user.user_metadata?.is_super_admin ? 'Super Admin' : 'Gestor SaaS'
+        });
+      }
+
       // A) Carregar Pedidos
       const { data: dbPedidos } = await supabase
         .from('pedidos')
         .select('*, ordens_producao(*, skus(*, familias_produto(*)))')
+        .eq('empresa_id', empresaId)
         .order('created_at', { ascending: false });
 
       const mappedOrders: Order[] = (dbPedidos || []).map((ped: any) => {
@@ -106,6 +142,7 @@ export default function Home() {
       const { data: dbSuppliers } = await supabase
         .from('fornecedores')
         .select('*, entradas_estoque(*, insumos(nome))')
+        .eq('empresa_id', empresaId)
         .order('nome');
 
       const mappedSuppliers: Supplier[] = (dbSuppliers || []).map((sup: any) => {
@@ -146,6 +183,7 @@ export default function Home() {
       const { data: activeTurno } = await supabase
         .from('turnos')
         .select('*, turnos_operadores(funcionarios(nome))')
+        .eq('empresa_id', empresaId)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -170,38 +208,16 @@ export default function Home() {
       const { count: dbLowStockCount } = await supabase
         .from('insumos')
         .select('*', { count: 'exact', head: true })
+        .eq('empresa_id', empresaId)
         .lt('estoque_atual', 500);
 
       setLowStockCount(dbLowStockCount || 0);
-
-      // E) Carregar perfil de usuário logado
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('usuarios')
-          .select('nome, cargo, is_super_admin')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        if (profile?.is_super_admin) {
-          router.push('/painel-gestor-helpe');
-          return;
-        }
-
-        if (profile) {
-          setUserProfile(profile);
-        } else {
-          setUserProfile({
-            nome: user.user_metadata?.nome || 'Administrador',
-            cargo: user.user_metadata?.is_super_admin ? 'Super Admin' : 'Gestor SaaS'
-          });
-        }
-      }
 
       // F) Carregar SKUs
       const { data: skusData } = await supabase
         .from('skus')
         .select('id, codigo, comprimento_mm')
+        .eq('empresa_id', empresaId)
         .order('codigo');
       if (skusData) {
         setDbSKUs(skusData);
@@ -224,6 +240,9 @@ export default function Home() {
       case 'pedidos':
       case 'pedido-detail':
         handleAddOrder();
+        break;
+      case 'estoque':
+        setTriggerAddEstoque(prev => prev + 1);
         break;
       case 'fornecedores':
       case 'fornecedor-cadastro':
@@ -489,7 +508,7 @@ export default function Home() {
         );
 
       case 'estoque':
-        return <EstoqueScreen />;
+        return <EstoqueScreen triggerAddNew={triggerAddEstoque} />;
 
       case 'pedidos':
         return (

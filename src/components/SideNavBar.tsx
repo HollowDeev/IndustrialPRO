@@ -181,6 +181,8 @@ export default function SideNavBar({
             case 'pedidos':
             case 'pedido-detail':
               return { text: 'NOVO PEDIDO', icon: 'add' };
+            case 'estoque':
+              return { text: 'NOVA ENTRADA', icon: 'local_shipping' };
             case 'fornecedores':
             case 'fornecedor-cadastro':
             case 'fornecedor-detail':
