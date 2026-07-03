@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { Analytics } from "@vercel/analytics/next"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 export const metadata: Metadata = {
   title: "KORE Industrial",
@@ -23,6 +24,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <ToastProvider>{children}</ToastProvider>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
