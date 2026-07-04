@@ -64,8 +64,8 @@ export default function LoginPage() {
       {/* Absolute Bottom Left Logo */}
       <div className="absolute bottom-6 left-6 z-0 pointer-events-none" style={{ width: 250, height: 110 }}>
         <Image
-          src="/kore-black.png"
-          alt="Kore Black Logo"
+          src="/HelpeLife_Logotipo.png"
+          alt="Helpe Life Logotipo"
           fill
           className="object-contain object-left-bottom opacity-30"
           priority

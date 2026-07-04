@@ -246,9 +246,9 @@ const ApontamentoDemandaPDF = ({ order }: DemandaProps) => {
 
         <View style={styles.footer} fixed>
           <View style={styles.footerImages}>
-            <Image src="/kore-black.png" style={styles.footerLogo} />
+            <Image src="/HelpeLife_Logotipo.png" style={styles.footerLogo} />
             <Image src="/assinatura.png" style={styles.footerAssinatura} />
-            <Text style={styles.footerText}>Kore Industrial ERP © 2026</Text>
+            <Text style={styles.footerText}>Helpe Life ERP © 2026</Text>
           </View>
           <Text style={styles.footerText} render={({ pageNumber, totalPages }) => (
             `Página ${pageNumber} de ${totalPages}`

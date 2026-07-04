@@ -476,7 +476,9 @@ export default function EstoqueScreen({ triggerAddNew = 0 }: { triggerAddNew?: n
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-bold text-[#74777f] uppercase mb-1">Quantidade</label>
+                  <label className="block text-[10px] font-bold text-[#74777f] uppercase mb-1">
+                    Quantidade {selectedInsumoId && items.find(i => i.id === selectedInsumoId) ? `(${items.find(i => i.id === selectedInsumoId)?.unidade_medida.toUpperCase()})` : ''}
+                  </label>
                   <input type="number" step="0.01" required value={quantidade} onChange={(e) => setQuantidade(e.target.value)} className="w-full bg-[#f4f3f9] border border-outline-variant rounded-lg p-2.5 font-bold text-[#002046] focus:outline-none" placeholder="Ex: 5000" />
                 </div>
                 <div>

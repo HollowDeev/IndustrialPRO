@@ -574,7 +574,7 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-outline uppercase mb-1">Estoque Atual ({newMat.purchaseUnit})</label>
+                    <label className="block text-[11px] font-bold text-outline uppercase mb-1">Estoque Atual ({newMat.purchaseUnit.toUpperCase()})</label>
                     <input
                       type="number"
                       value={newMat.currentStock || ''}
@@ -798,7 +798,7 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-bold text-outline uppercase mb-0.5">Estoque Atual ({editForm.purchaseUnit})</label>
+                          <label className="block text-[10px] font-bold text-outline uppercase mb-0.5">Estoque Atual ({editForm.purchaseUnit.toUpperCase()})</label>
                           <input
                             type="number"
                             value={editForm.currentStock}

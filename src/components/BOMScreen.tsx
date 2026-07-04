@@ -256,7 +256,7 @@ export default function BOMScreen() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[9px] font-black uppercase text-[#74777f] mb-1">Dosagem Nominal</label>
+                    <label className="block text-[9px] font-black uppercase text-[#74777f] mb-1">Dosagem Nominal (ML/TON ou QTD BASE)</label>
                     <input
                       type="number"
                       step="0.0001"

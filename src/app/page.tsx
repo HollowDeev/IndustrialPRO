@@ -768,7 +768,7 @@ export default function Home() {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-[#74777f] uppercase mb-1">Quantidade Planejada</label>
+                  <label className="block text-[10px] font-bold text-[#74777f] uppercase mb-1">Quantidade Planejada (PEÇAS)</label>
                   <input
                     type="number"
                     required
