@@ -328,7 +328,7 @@ export default function DashboardScreen({
   return (
     <div className="space-y-6 relative">
       {/* Welcome Banner / Overview */}
-      <div className="bg-primary-container text-on-primary-container p-6 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-outline-variant shadow-xs">
+      <div id="tour-dashboard-banner" className="bg-primary-container text-on-primary-container p-6 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-outline-variant shadow-xs">
         <div>
           <h3 className="text-xl font-bold tracking-tight">Bem-vindo ao KORE INDUSTRIAL, {userName || 'Operador'}</h3>
           <p className="text-sm text-on-primary-container/85 mt-1 leading-relaxed">
@@ -347,7 +347,7 @@ export default function DashboardScreen({
       </div>
 
       {/* ZONA 1: KPIs Estratégicos (Módulo 1) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div id="tour-dashboard-kpis" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* KPI 1: Carteira de Vendas */}
         <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant shadow-xs flex items-center gap-4">
@@ -413,7 +413,7 @@ export default function DashboardScreen({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* ZONA 2: Tabela do MRP I - Left span-8 block */}
-        <div className="lg:col-span-8 bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-xs space-y-4">
+        <div id="tour-dashboard-mrpi" className="lg:col-span-8 bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-xs space-y-4">
           <div>
             <h4 className="text-sm font-black text-primary uppercase tracking-wider">Zona 2: Tabela de Necessidades MRP I</h4>
             <p className="text-xs text-outline mt-0.5">Balizamento de demandas físicas projetadas das OPs ativas vs. saldos em estoque</p>
@@ -471,7 +471,7 @@ export default function DashboardScreen({
 
         {/* ZONA 3: Status do Chão de Fábrica (Progresso de Batelada) - Right span-4 block */}
         <div className="lg:col-span-4 space-y-6">
-          <div className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-xs space-y-4">
+          <div id="tour-dashboard-bateladas" className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-xs space-y-4">
             <div>
               <h4 className="text-xs font-black text-primary uppercase tracking-wider">Zona 3: Progresso de Batelada</h4>
               <p className="text-[10px] text-outline mt-0.5">Acompanhamento de metas de produção física em tempo real</p>

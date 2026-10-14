@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Supplier, Order, DailyProductionSetup } from '../types';
 import SideNavBar from '../components/SideNavBar';
@@ -29,6 +29,7 @@ import ClientesScreen from '../components/ClientesScreen';
 import ArquivosScreen from '../components/ArquivosScreen';
 import FinanceiroScreen from '../components/FinanceiroScreen';
 import FormacaoPrecoScreen, { SimulatedOrderItem } from '../components/FormacaoPrecoScreen';
+import InteractiveTour, { InteractiveTourHandle } from '../components/InteractiveTour';
 
 function parseDbCategories(categoriaVal: any): string[] {
   let rawList: string[] = [];
@@ -86,6 +87,7 @@ export default function Home() {
   const [dbSKUs, setDbSKUs] = useState<{ id: string; codigo: string; comprimento_mm: number }[]>([]);
   const [preSelectedItems, setPreSelectedItems] = useState<SimulatedOrderItem[] | undefined>(undefined);
   const [calculatorInitialItems, setCalculatorInitialItems] = useState<SimulatedOrderItem[]>([]);
+  const tourRef = useRef<InteractiveTourHandle>(null);
 
   // Carregar dados principais do banco de dados (Supabase)
   const fetchData = async () => {
@@ -818,6 +820,7 @@ export default function Home() {
           onSearch={(query) => {
             setGlobalSearch(query);
           }}
+          onStartTour={() => tourRef.current?.startTour()}
         />
 
         {/* Workspace body */}
@@ -841,6 +844,13 @@ export default function Home() {
         initialCode={newOrderCode}
         preSelectedClientId={preSelectedClientId}
         preSelectedItems={preSelectedItems}
+      />
+
+      {/* ================= TOUR INTERATIVO PARA AVALIADORES ================= */}
+      <InteractiveTour
+        ref={tourRef}
+        currentScreen={currentScreen}
+        setCurrentScreen={setCurrentScreen}
       />
     </div>
   );

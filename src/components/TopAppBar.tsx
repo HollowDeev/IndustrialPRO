@@ -6,12 +6,14 @@ interface TopAppBarProps {
   currentScreen: string;
   setCurrentScreen: (screen: string) => void;
   onSearch?: (query: string) => void;
+  onStartTour?: () => void;
 }
 
 export default function TopAppBar({
   currentScreen,
   setCurrentScreen,
-  onSearch
+  onSearch,
+  onStartTour
 }: TopAppBarProps) {
   const [searchValue, setSearchValue] = useState('');
   const [userProfile, setUserProfile] = useState<{ nome: string; cargo: string } | null>(null);
@@ -185,9 +187,22 @@ export default function TopAppBar({
       </div>
 
       {/* Global search entry & user status component */}
-      <div className="flex items-center gap-5 justify-between md:justify-end shrink-0 relative">
+      <div className="flex items-center gap-4 justify-between md:justify-end shrink-0 relative">
+        {/* Botão Guia do Sistema para Avaliadores */}
+        {onStartTour && (
+          <button
+            id="tour-trigger-btn"
+            onClick={onStartTour}
+            className="flex items-center gap-1.5 bg-gradient-to-r from-secondary to-amber-500 hover:brightness-105 active:scale-95 text-white px-3.5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer shadow-sm border border-secondary/40 shrink-0"
+            title="Iniciar Tour Interativo Explicativo do Sistema"
+          >
+            <span className="material-symbols-outlined notranslate text-[18px]">play_circle</span>
+            <span>Guia do Sistema</span>
+          </button>
+        )}
+
         {/* Search Input bar */}
-        <div className="relative max-w-xs hidden sm:block">
+        <div className="relative max-w-xs hidden sm:block" id="tour-global-search">
           <span className="material-symbols-outlined notranslate absolute left-3 top-2.5 text-[20px] text-outline">
             search
           </span>
@@ -197,9 +212,9 @@ export default function TopAppBar({
             placeholder="Pesquisar..."
             value={searchValue}
             onChange={handleSearchChange}
-            className="w-full bg-surface-container-low text-primary text-sm pl-10 pr-12 py-2.5 rounded-full border border-outline/20 outline-hidden focus:border-secondary focus:ring-1 focus:ring-secondary transition-all"
+            className="w-full bg-surface-container-low text-primary text-sm pl-10 pr-12 py-2 rounded-full border border-outline/20 outline-hidden focus:border-secondary focus:ring-1 focus:ring-secondary transition-all"
           />
-          <div className="absolute right-2 top-2">
+          <div className="absolute right-2 top-1.5">
             <kbd className="text-[10px] text-outline bg-surface border border-outline-variant rounded px-1.5 py-0.5 pointer-events-none">F</kbd>
           </div>
         </div>

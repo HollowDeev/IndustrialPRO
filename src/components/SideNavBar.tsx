@@ -72,7 +72,7 @@ export default function SideNavBar({
       : currentScreen === activeScreenMatch;
       
     return (
-      <button onClick={() => setCurrentScreen(id)} className={navItemClass(isActive)}>
+      <button id={`tour-nav-${id}`} onClick={() => setCurrentScreen(id)} className={navItemClass(isActive)}>
         {iconClass(icon, customFill)}
         {!isCollapsed && <span>{label}</span>}
         {renderTooltip(label)}
@@ -115,7 +115,7 @@ export default function SideNavBar({
         </div>
 
         {/* Cadastros Parent Group */}
-        <div className="space-y-1">
+        <div className="space-y-1" id="tour-nav-cadastros">
           {!isCollapsed ? (
             <button
               type="button"
@@ -149,7 +149,7 @@ export default function SideNavBar({
         </div>
 
         {/* Produção Parent Group */}
-        <div className="space-y-1">
+        <div className="space-y-1" id="tour-nav-planejamento">
           {!isCollapsed ? (
             <button
               type="button"
@@ -181,7 +181,7 @@ export default function SideNavBar({
 
         {/* Financeiro Parent Group */}
         {canAccess('financeiro') && (
-          <div className="space-y-1">
+          <div className="space-y-1" id="tour-nav-financeiro">
             {!isCollapsed ? (
               <button
                 type="button"
@@ -242,6 +242,7 @@ export default function SideNavBar({
         return (
           <div className="p-4 border-t border-outline-variant mt-auto bg-surface-bright relative">
             <button
+              id="tour-nav-action-btn"
               onClick={handleAction}
               className={`group w-full bg-secondary hover:brightness-95 hover:scale-[0.98] text-white font-bold py-3 ${isCollapsed ? 'px-0 justify-center' : 'px-4 justify-center'} rounded-lg flex items-center gap-2 text-xs transition-all tracking-wider select-none shadow-sm cursor-pointer border border-transparent`}
             >
