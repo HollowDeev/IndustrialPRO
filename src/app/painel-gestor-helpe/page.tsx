@@ -6,6 +6,7 @@ import { createClient } from '@/utils/supabase/client'
 import Logo from '@/components/Logo'
 import LoadingOverlay from '@/components/LoadingOverlay'
 import Footer from '@/components/Footer'
+import ControleAcessos from '@/components/ControleAcessos'
 
 interface Empresa {
   id: string
@@ -22,6 +23,7 @@ interface Usuario {
   is_super_admin: boolean
   empresa_id: string | null
   empresas: { nome: string } | null
+  email?: string
 }
 
 interface AuthLog {
@@ -42,8 +44,9 @@ interface AuthLog {
 export default function PainelGestorHelpe() {
   const router = useRouter()
   const supabase = createClient()
-  const [activeTab, setActiveTab] = useState<'empresas' | 'usuarios' | 'logs'>('empresas')
+  const [activeTab, setActiveTab] = useState<'empresas' | 'usuarios' | 'logs' | 'acessos'>('empresas')
   const [loading, setLoading] = useState(true)
+  const [selectedEmpresaIdAcessos, setSelectedEmpresaIdAcessos] = useState<string>('')
   
   // States - Empresas
   const [empresas, setEmpresas] = useState<Empresa[]>([])
@@ -57,6 +60,11 @@ export default function PainelGestorHelpe() {
   const [userEmail, setUserEmail] = useState('')
   const [userPassword, setUserPassword] = useState('')
   const [userEmpresaId, setUserEmpresaId] = useState('')
+
+  // States - Reset Senha
+  const [resetModalOpen, setResetModalOpen] = useState(false)
+  const [userToReset, setUserToReset] = useState<Usuario | null>(null)
+  const [newPasswordReset, setNewPasswordReset] = useState('')
 
   // States - Logs
   const [logs, setLogs] = useState<AuthLog[]>([])
@@ -198,6 +206,33 @@ export default function PainelGestorHelpe() {
     }
   }
 
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!userToReset || newPasswordReset.length < 6) return
+    setActionLoading(true)
+    
+    try {
+      const res = await fetch('/api/admin/update-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: userToReset.id,
+          newPassword: newPasswordReset
+        })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      
+      showMsg('Senha alterada com sucesso!')
+      setResetModalOpen(false)
+      setUserToReset(null)
+      setNewPasswordReset('')
+    } catch (err: any) {
+      showMsg(`Erro ao alterar senha: ${err.message}`, 'error')
+    }
+    setActionLoading(false)
+  }
+
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/login')
@@ -258,6 +293,18 @@ export default function PainelGestorHelpe() {
             >
               <span className="material-symbols-outlined notranslate">history</span>
               <span>Logs de Acesso</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('acessos')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left uppercase tracking-wider ${
+                activeTab === 'acessos'
+                  ? 'bg-[#1b365d] text-white'
+                  : 'text-[#74777f] hover:bg-[#f3f4f5]'
+              }`}
+            >
+              <span className="material-symbols-outlined notranslate">admin_panel_settings</span>
+              <span>Controle de Acessos</span>
             </button>
           </nav>
         </div>
@@ -465,15 +512,18 @@ export default function PainelGestorHelpe() {
                   <thead>
                     <tr className="bg-[#f8f9fa] border-b border-[#e7e8e9] font-bold text-[#74777f] uppercase text-[10px] tracking-wider">
                       <th className="p-4">Nome</th>
+                      <th className="p-4">E-mail</th>
                       <th className="p-4">Cargo</th>
                       <th className="p-4">Empresa Vinculada</th>
                       <th className="p-4 text-center">Tipo</th>
+                      <th className="p-4 text-center">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#e7e8e9]">
                     {usuarios.map((user) => (
                       <tr key={user.id} className="hover:bg-gray-50/50">
                         <td className="p-4 font-bold">{user.nome}</td>
+                        <td className="p-4 text-[#74777f]">{user.email || 'N/A'}</td>
                         <td className="p-4 text-[#74777f]">{user.cargo || 'Não especificado'}</td>
                         <td className="p-4 font-bold text-[#1b365d]">
                           {user.is_super_admin ? 'Geral (SaaS)' : (user.empresas?.nome || 'Nenhuma')}
@@ -487,14 +537,75 @@ export default function PainelGestorHelpe() {
                             {user.is_super_admin ? 'SUPER ADMIN' : 'CLIENTE'}
                           </span>
                         </td>
+                        <td className="p-4 text-center">
+                          <button
+                            onClick={() => {
+                              setUserToReset(user)
+                              setResetModalOpen(true)
+                            }}
+                            className="bg-orange-50 text-orange-600 border border-orange-200 px-3 py-1.5 rounded-lg text-[10px] font-bold hover:bg-orange-100 transition-colors uppercase cursor-pointer"
+                          >
+                            Alterar Senha
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
+
+            {/* Modal de Reset de Senha */}
+            {resetModalOpen && userToReset && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-xl">
+                  <h3 className="text-lg font-black uppercase tracking-tight mb-2 text-[#002046]">
+                    Alterar Senha
+                  </h3>
+                  <p className="text-xs text-[#74777f] mb-6">
+                    Definir nova senha para <strong>{userToReset.nome}</strong>.
+                  </p>
+                  <form onSubmit={handleResetPassword} className="space-y-4">
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-[#74777f] mb-1">
+                        Nova Senha (mín. 6 caracteres)
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        minLength={6}
+                        value={newPasswordReset}
+                        onChange={(e) => setNewPasswordReset(e.target.value)}
+                        placeholder="Digite a nova senha"
+                        className="w-full bg-[#f3f4f5] text-sm px-4 py-2.5 rounded-xl border border-transparent focus:border-[#fc820c] focus:bg-white outline-hidden transition-all"
+                      />
+                    </div>
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setResetModalOpen(false)
+                          setUserToReset(null)
+                          setNewPasswordReset('')
+                        }}
+                        className="flex-1 bg-white border border-[#e7e8e9] text-[#74777f] text-xs font-bold py-3 rounded-xl uppercase tracking-wider hover:bg-[#f8f9fa] transition-colors cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={actionLoading || newPasswordReset.length < 6}
+                        className="flex-1 bg-[#fc820c] hover:bg-[#e67300] text-white text-xs font-bold py-3 rounded-xl uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50"
+                      >
+                        {actionLoading ? 'Salvando...' : 'Salvar Nova Senha'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
           </div>
-        ) : (
+        ) : activeTab === 'logs' ? (
           /* Tab de Logs de Acesso */
           <div className="bg-white rounded-3xl border border-[#e7e8e9] overflow-hidden">
             <div className="p-6 border-b border-[#e7e8e9] flex justify-between items-center bg-[#fcfdfe]">
@@ -556,7 +667,40 @@ export default function PainelGestorHelpe() {
               </table>
             </div>
           </div>
+        ) : null}
+
+        {activeTab === 'acessos' && (
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-2xl border border-[#e7e8e9] shadow-sm">
+              <h2 className="text-sm font-black uppercase tracking-wider mb-4 flex items-center gap-2 text-[#002046]">
+                <span className="material-symbols-outlined notranslate text-primary">admin_panel_settings</span>
+                Gestão de Níveis de Acesso
+              </h2>
+              <div className="mb-6 max-w-md">
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Selecione a Empresa Cliente</label>
+                <select
+                  value={selectedEmpresaIdAcessos}
+                  onChange={(e) => setSelectedEmpresaIdAcessos(e.target.value)}
+                  className="w-full bg-[#f4f3f9] border border-[#e7e8e9] rounded-lg p-3 font-bold text-[#002046] focus:outline-none focus:ring-2 focus:ring-[#1b365d]"
+                >
+                  <option value="">-- Selecione uma Empresa --</option>
+                  {empresas.map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.nome} (CNPJ: {emp.cnpj})</option>
+                  ))}
+                </select>
+              </div>
+              
+              {selectedEmpresaIdAcessos ? (
+                <ControleAcessos empresaIdProp={selectedEmpresaIdAcessos} isSuperAdmin={true} />
+              ) : (
+                <div className="p-8 text-center text-gray-500 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                  Selecione uma empresa acima para gerenciar seus níveis de acesso e usuários.
+                </div>
+              )}
+            </div>
+          </div>
         )}
+
         <div className="mt-8">
           <Footer />
         </div>

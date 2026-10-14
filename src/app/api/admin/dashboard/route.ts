@@ -35,15 +35,25 @@ export async function GET() {
   }
 
   // Fetch all necessary data bypassing RLS
-  const [empresasRes, usuariosRes, logsRes] = await Promise.all([
+  const [empresasRes, usuariosRes, logsRes, authUsersRes] = await Promise.all([
     adminClient.from('empresas').select('*').order('created_at', { ascending: false }),
     adminClient.from('usuarios').select('*, empresas(nome)').order('nome'),
-    adminClient.from('logs_autenticacao').select('*').order('created_at', { ascending: false })
+    adminClient.from('logs_autenticacao').select('*').order('created_at', { ascending: false }),
+    adminClient.auth.admin.listUsers()
   ])
+
+  const authUsers = authUsersRes.data?.users || []
+  const usuariosComEmail = (usuariosRes.data || []).map(u => {
+    const authUser = authUsers.find(au => au.id === u.id)
+    return {
+      ...u,
+      email: authUser?.email || 'N/A'
+    }
+  })
 
   return NextResponse.json({
     empresas: empresasRes.data || [],
-    usuarios: usuariosRes.data || [],
+    usuarios: usuariosComEmail,
     logs: logsRes.data || []
   })
 }

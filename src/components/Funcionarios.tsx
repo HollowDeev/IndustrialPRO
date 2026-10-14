@@ -1,114 +1,85 @@
 import React, { useState, useEffect } from 'react';
-import { Employee, PunctualityRecord, EmployeeQualities } from '../types';
-import { 
-  User, 
-  Calendar, 
-  MapPin, 
-  DollarSign, 
-  Briefcase, 
-  Clock, 
-  Plus, 
-  Search, 
-  Edit3, 
-  Check, 
-  X, 
-  Award, 
-  Trash2, 
-  CheckSquare, 
-  Square,
-  ChevronRight,
-  UserPlus
-} from 'lucide-react';
+import { Funcionario, Extrusora } from '../types';
 import { createClient } from '../utils/supabase/client';
 import { useToast } from '../contexts/ToastContext';
 import LoadingOverlay from './LoadingOverlay';
 
-export default function Funcionarios({ 
-  externalSearchQuery,
+export default function Funcionarios({
   triggerAddNew
-}: { 
-  externalSearchQuery?: string;
+}: {
   triggerAddNew?: number;
 }) {
   const { addToast } = useToast();
   const supabase = createClient();
 
-  useEffect(() => {
-    if (triggerAddNew !== undefined && triggerAddNew > 0) {
-      handleStartAddNew();
-    }
-  }, [triggerAddNew]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'FUNCIONARIOS' | 'EXTRUSORAS' | 'VENDEDORES'>('FUNCIONARIOS');
   const [loading, setLoading] = useState(true);
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
-  const [isAddingNew, setIsAddingNew] = useState(false);
-  const [isQualityModalOpen, setIsQualityModalOpen] = useState(false);
+  // States for Data
+  const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
+  const [extrusoras, setExtrusoras] = useState<Extrusora[]>([]);
+  const [empresaId, setEmpresaId] = useState<string | null>(null);
 
-  // New Employee Form State
-  const [newEmp, setNewEmp] = useState<Partial<Employee>>({
-    id: '',
-    firstName: '',
-    lastName: '',
-    birthDate: '',
-    civilStatus: 'Solteiro(a)',
-    address: '',
-    city: '',
-    state: 'SP',
-    zipCode: '',
-    admissionDate: new Date().toISOString().substring(0, 10),
-    role: '',
-    hourlyWage: 20,
-    workingHoursRegime: 8,
-    punctualityHistory: [],
-    qualities: {
-      empilhadeira: false,
-      laser: false,
-      habilitadoDirigir: false,
-      lixadeira: false,
-      controleQualidade: false,
-      extrusorNivel1: false,
-      extrusorNivel2: false
-    }
-  });
+  // States for Modals
+  const [isFuncModalOpen, setIsFuncModalOpen] = useState(false);
+  const [isExtModalOpen, setIsExtModalOpen] = useState(false);
+  const [isVendasModalOpen, setIsVendasModalOpen] = useState(false);
+  const [selectedVendedor, setSelectedVendedor] = useState<Funcionario | null>(null);
+  const [vendasLoading, setVendasLoading] = useState(false);
+  const [vendasHistorico, setVendasHistorico] = useState<any[]>([]);
 
-  // Edit Employee Form State
-  const [editForm, setEditForm] = useState<Employee | null>(null);
+  // States for Forms
+  const [funcForm, setFuncForm] = useState<Partial<Funcionario>>({ nome: '', extrusora_id: '' });
+  const [extForm, setExtForm] = useState<Partial<Extrusora>>({ codigo: '', numero: '' });
 
-  // New Punctuality Record Form State
-  const [newPunct, setNewPunct] = useState({
-    date: new Date().toISOString().substring(0, 10),
-    arrivalTime: '08:00',
-    lunchStart: '12:00',
-    lunchEnd: '13:00',
-    departureTime: '17:00'
-  });
-
-  const fetchEmployees = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('funcionarios')
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase.from('usuarios').select('empresa_id').eq('id', user.id).single();
+      const currentEmpresaId = profile?.empresa_id;
+      if (!currentEmpresaId) return;
+      
+      setEmpresaId(currentEmpresaId);
+
+      // Fetch Extrusoras
+      const { data: dataExtrusoras } = await supabase
+        .from('extrusoras')
         .select('*')
+        .eq('empresa_id', currentEmpresaId)
+        .order('codigo');
+      
+      if (dataExtrusoras) setExtrusoras(dataExtrusoras);
+
+      // Fetch Funcionarios (with extrusora join)
+      const { data: dataFuncionarios } = await supabase
+        .from('funcionarios')
+        .select(`
+          id,
+          nome,
+          cargo,
+          ativo,
+          extrusora_id,
+          vendedor,
+          cpf,
+          extrusoras:extrusora_id (
+            id,
+            codigo,
+            numero
+          )
+        `)
+        .eq('empresa_id', currentEmpresaId)
         .order('nome');
 
-      if (data) {
-        const mapped = data.map((item: any) => ({
-          ...item.metadados,
-          id: item.id,
-          customId: item.metadados?.customId || item.metadados?.id || 'EMP',
-          firstName: item.metadados?.firstName || item.nome.split(' ')[0],
-          lastName: item.metadados?.lastName || item.nome.split(' ').slice(1).join(' '),
-          role: item.cargo || item.metadados?.role || 'Operador',
-          ativo: item.ativo
-        }));
-        setEmployees(mapped);
-        if (mapped.length > 0 && !selectedEmployeeId) {
-          setSelectedEmployeeId(mapped[0].id);
-        }
+      if (dataFuncionarios) {
+        setFuncionarios(dataFuncionarios.map((f: any) => ({
+          ...f,
+          extrusora: f.extrusoras
+        })));
       }
+
     } catch (err) {
       console.error(err);
     } finally {
@@ -117,1111 +88,691 @@ export default function Funcionarios({
   };
 
   useEffect(() => {
-    fetchEmployees();
+    fetchData();
   }, []);
 
-  const currentEmployee = employees.find(e => e.id === selectedEmployeeId);
-
   useEffect(() => {
-    if (currentEmployee) {
-      setEditForm({ ...currentEmployee });
-    } else {
-      setEditForm(null);
+    if (triggerAddNew !== undefined && triggerAddNew > 0) {
+      handleOpenFuncModal();
     }
-    setIsEditing(false);
-  }, [selectedEmployeeId, employees]);
+  }, [triggerAddNew]);
 
-  const parseTimeToHours = (timeStr: string): number => {
-    if (!timeStr) return 0;
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    if (isNaN(hours) || isNaN(minutes)) return 0;
-    return hours + (minutes / 60);
+  // Máscara de formatação do CPF
+  const formatCPF = (val: string) => {
+    return val
+      .replace(/\D/g, '') // remove tudo que não for dígito
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})/, '$1-$2')
+      .replace(/(-\d{2})\d+?$/, '$1'); // limita a 11 dígitos formatados
   };
 
-  const calculateDailyHours = (p: PunctualityRecord): number => {
-    const tArrival = parseTimeToHours(p.arrivalTime);
-    const tLunchStart = parseTimeToHours(p.lunchStart);
-    const tLunchEnd = parseTimeToHours(p.lunchEnd);
-    const tDeparture = parseTimeToHours(p.departureTime);
-
-    const morning = Math.max(0, tLunchStart - tArrival);
-    const afternoon = Math.max(0, tDeparture - tLunchEnd);
-    return parseFloat((morning + afternoon).toFixed(2));
-  };
-
-  const calculateDailyExtra = (p: PunctualityRecord, regime: number): number => {
-    const worked = calculateDailyHours(p);
-    const extra = worked - regime;
-    return extra > 0 ? parseFloat(extra.toFixed(2)) : 0;
-  };
-
-  const calculateTotalHours = (history: PunctualityRecord[]): number => {
-    return (history || []).reduce((acc, p) => acc + calculateDailyHours(p), 0);
-  };
-
-  const calculateTotalExtraHours = (history: PunctualityRecord[], regime: number): number => {
-    return (history || []).reduce((acc, p) => acc + calculateDailyExtra(p, regime), 0);
-  };
-
-  const calculateMonthlySalary = (employee: Employee): number => {
-    const hours = calculateTotalHours(employee.punctualityHistory);
-    return parseFloat((hours * employee.hourlyWage).toFixed(2));
-  };
-
-  const formatHours = (hours: number): string => {
-    const h = Math.floor(hours);
-    const m = Math.round((hours - h) * 60);
-    return `${h}h ${m > 0 ? `${m}m` : '00m'}`;
-  };
-
-  const formatCEP = (value: string) => {
-    let val = value.replace(/\D/g, '');
-    if (val.length > 8) val = val.substring(0, 8);
-    if (val.length > 5) val = val.substring(0, 5) + '-' + val.substring(5);
-    return val;
-  };
-
-  const filteredEmployees = employees.filter(e => {
-    const fullName = `${e.firstName} ${e.lastName}`.toLowerCase();
-    const query = (externalSearchQuery || searchTerm || '').toLowerCase();
-    return fullName.includes(query) || e.role.toLowerCase().includes(query) || (e.customId || '').toLowerCase().includes(query);
-  });
-
-  const handleStartAddNew = () => {
-    const nextCodeNum = employees.length + 1;
-    const autoCode = `EMP-${nextCodeNum.toString().padStart(3, '0')}`;
-    setNewEmp({
-      id: autoCode,
-      firstName: '',
-      lastName: '',
-      birthDate: '1990-01-01',
-      civilStatus: 'Solteiro(a)',
-      address: '',
-      city: '',
-      state: 'SP',
-      zipCode: '',
-      admissionDate: new Date().toISOString().substring(0, 10),
-      role: '',
-      hourlyWage: 25,
-      workingHoursRegime: 8,
-      punctualityHistory: [],
-      qualities: {
-        empilhadeira: false,
-        laser: false,
-        habilitadoDirigir: false,
-        lixadeira: false,
-        controleQualidade: false,
-        extrusorNivel1: false,
-        extrusorNivel2: false
-      }
-    });
-    setIsAddingNew(true);
-  };
-
-  const handleCreateEmployee = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newEmp.id || !newEmp.firstName || !newEmp.lastName || !newEmp.role) {
-      addToast('Por favor, preencha o Código, Nome, Sobrenome e Função.', 'warning');
-      return;
-    }
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data: profile } = await supabase.from('usuarios').select('empresa_id').eq('id', user.id).single();
-    const empresaId = profile?.empresa_id;
-    if (!empresaId) return;
-
-    const metadataObj = {
-      customId: newEmp.id,
-      firstName: newEmp.firstName,
-      lastName: newEmp.lastName,
-      birthDate: newEmp.birthDate || '',
-      civilStatus: newEmp.civilStatus || 'Solteiro(a)',
-      address: newEmp.address || '',
-      city: newEmp.city || '',
-      state: newEmp.state || 'SP',
-      zipCode: newEmp.zipCode || '',
-      admissionDate: newEmp.admissionDate || '',
-      role: newEmp.role,
-      hourlyWage: Number(newEmp.hourlyWage) || 20,
-      workingHoursRegime: Number(newEmp.workingHoursRegime) || 8,
-      punctualityHistory: [],
-      qualities: newEmp.qualities
-    };
-
-    const { error } = await supabase.from('funcionarios').insert({
-      empresa_id: empresaId,
-      nome: `${newEmp.firstName} ${newEmp.lastName}`,
-      cargo: newEmp.role,
-      ativo: true,
-      metadados: metadataObj
-    });
-
-    if (error) {
-      addToast(`Erro ao criar funcionário: ${error.message}`, 'error');
-    } else {
-      setIsAddingNew(false);
-      await fetchEmployees();
-    }
-  };
-
-  const handleSaveEdit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editForm) return;
-
-    if (!editForm.firstName || !editForm.lastName || !editForm.role) {
-      addToast('Por favor, preencha Nome, Sobrenome e Função.', 'warning');
-      return;
-    }
-
-    const metadataObj = {
-      customId: editForm.customId || editForm.id,
-      firstName: editForm.firstName,
-      lastName: editForm.lastName,
-      birthDate: editForm.birthDate || '',
-      civilStatus: editForm.civilStatus || 'Solteiro(a)',
-      address: editForm.address || '',
-      city: editForm.city || '',
-      state: editForm.state || 'SP',
-      zipCode: editForm.zipCode || '',
-      admissionDate: editForm.admissionDate || '',
-      role: editForm.role,
-      hourlyWage: Number(editForm.hourlyWage) || 20,
-      workingHoursRegime: Number(editForm.workingHoursRegime) || 8,
-      punctualityHistory: editForm.punctualityHistory || [],
-      qualities: editForm.qualities
-    };
-
-    const { error } = await supabase
-      .from('funcionarios')
-      .update({
-        nome: `${editForm.firstName} ${editForm.lastName}`,
-        cargo: editForm.role,
-        metadados: metadataObj
-      })
-      .eq('id', editForm.id);
-
-    if (error) {
-      addToast(`Erro ao atualizar funcionário: ${error.message}`, 'error');
-    } else {
-      setIsEditing(false);
-      await fetchEmployees();
-    }
-  };
-
-  const handleDeleteEmployee = async (id: string) => {
-    if (confirm('Deseja realmente excluir este funcionário?')) {
-      const { error } = await supabase.from('funcionarios').delete().eq('id', id);
-      if (error) {
-        addToast(`Erro ao excluir: ${error.message}`, 'error');
-      } else {
-        await fetchEmployees();
-      }
-    }
-  };
-
-  const handleAddPunctualityRecord = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentEmployee) return;
-
-    const record: PunctualityRecord = {
-      id: `p-${Date.now()}`,
-      date: newPunct.date.split('-').reverse().join('/'),
-      arrivalTime: newPunct.arrivalTime,
-      lunchStart: newPunct.lunchStart,
-      lunchEnd: newPunct.lunchEnd,
-      departureTime: newPunct.departureTime
-    };
-
-    const updatedHistory = [...(currentEmployee.punctualityHistory || []), record];
-    
-    updatedHistory.sort((a,b) => {
-      const parseDateStr = (str: string) => {
-        const [d, m, y] = str.split('/').map(Number);
-        return new Date(y, m - 1, d).getTime();
-      };
-      return parseDateStr(b.date) - parseDateStr(a.date);
-    });
-
-    const metadataObj = {
-      ...currentEmployee,
-      punctualityHistory: updatedHistory
-    };
-
-    const { error } = await supabase
-      .from('funcionarios')
-      .update({
-        metadados: metadataObj
-      })
-      .eq('id', currentEmployee.id);
-
-    if (error) {
-      addToast(`Erro ao salvar ponto: ${error.message}`, 'error');
-    } else {
-      await fetchEmployees();
-      setNewPunct(prev => ({
-        ...prev,
-        arrivalTime: '08:00',
-        lunchStart: '12:00',
-        lunchEnd: '13:00',
-        departureTime: '17:00'
-      }));
-    }
-  };
-
-  const handleDeletePunctualityRecord = async (recordId: string) => {
-    if (!currentEmployee) return;
-
-    if (confirm('Remover este registro de ponto?')) {
-      const updatedHistory = (currentEmployee.punctualityHistory || []).filter(r => r.id !== recordId);
-      
-      const metadataObj = {
-        ...currentEmployee,
-        punctualityHistory: updatedHistory
-      };
-
-      const { error } = await supabase
-        .from('funcionarios')
-        .update({
-          metadados: metadataObj
-        })
-        .eq('id', currentEmployee.id);
-
-      if (error) {
-        addToast(`Erro ao remover ponto: ${error.message}`, 'error');
-      } else {
-        await fetchEmployees();
-      }
-    }
-  };
-
-  const handleToggleQuality = async (qualityKey: keyof EmployeeQualities) => {
-    if (isAddingNew) {
-      setNewEmp(prev => ({
-        ...prev,
-        qualities: {
-          ...prev.qualities!,
-          [qualityKey]: !prev.qualities![qualityKey]
-        }
-      }));
-    } else if (isEditing && editForm) {
-      setEditForm({
-        ...editForm,
-        qualities: {
-          ...editForm.qualities,
-          [qualityKey]: !editForm.qualities[qualityKey]
-        }
+  // --- Handlers para Funcionários ---
+  const handleOpenFuncModal = (func?: Funcionario) => {
+    if (func) {
+      setFuncForm({ 
+        id: func.id, 
+        nome: func.nome, 
+        extrusora_id: func.extrusora_id || '',
+        vendedor: func.vendedor || false,
+        cpf: func.cpf || ''
       });
-    } else if (currentEmployee) {
-      const updatedQualities = {
-        ...currentEmployee.qualities,
-        [qualityKey]: !currentEmployee.qualities[qualityKey]
+    } else {
+      setFuncForm({ 
+        id: undefined, 
+        nome: '', 
+        extrusora_id: '',
+        vendedor: false,
+        cpf: ''
+      });
+    }
+    setIsFuncModalOpen(true);
+  };
+
+  const handleSaveFuncionario = async () => {
+    if (!funcForm.nome) {
+      addToast('O nome do funcionário é obrigatório.', 'error');
+      return;
+    }
+
+    if (funcForm.vendedor && !funcForm.cpf) {
+      addToast('O CPF é obrigatório para vendedores.', 'error');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload = {
+        nome: funcForm.nome,
+        extrusora_id: funcForm.vendedor ? null : (funcForm.extrusora_id || null),
+        vendedor: funcForm.vendedor || false,
+        cpf: funcForm.vendedor ? (funcForm.cpf || '') : null
       };
 
-      const metadataObj = {
-        ...currentEmployee,
-        qualities: updatedQualities
-      };
-
-      const { error } = await supabase
-        .from('funcionarios')
-        .update({
-          metadados: metadataObj
-        })
-        .eq('id', currentEmployee.id);
-
-      if (error) {
-        addToast(`Erro ao atualizar qualidades: ${error.message}`, 'error');
+      if (funcForm.id) {
+        // Edit
+        const { error } = await supabase
+          .from('funcionarios')
+          .update(payload)
+          .eq('id', funcForm.id);
+        if (error) throw error;
+        addToast('Funcionário atualizado com sucesso!', 'success');
       } else {
-        await fetchEmployees();
+        // Insert
+        const { error } = await supabase
+          .from('funcionarios')
+          .insert({
+            empresa_id: empresaId,
+            cargo: 'Operador',
+            ...payload
+          });
+        if (error) throw error;
+        addToast('Funcionário cadastrado com sucesso!', 'success');
       }
+      setIsFuncModalOpen(false);
+      fetchData();
+    } catch (err: any) {
+      addToast(`Erro ao salvar: ${err.message}`, 'error');
+      setLoading(false);
     }
   };
 
-  const QUALITY_LABELS: { key: keyof EmployeeQualities; label: string }[] = [
-    { key: 'empilhadeira', label: 'Operação de Empilhadeira' },
-    { key: 'laser', label: 'Operação de Laser' },
-    { key: 'habilitadoDirigir', label: 'Habilitado para dirigir' },
-    { key: 'lixadeira', label: 'Operação de Lixadeira' },
-    { key: 'controleQualidade', label: 'Controle de Qualidade de Matéria Prima' },
-    { key: 'extrusorNivel1', label: 'Extrusor Nível 1' },
-    { key: 'extrusorNivel2', label: 'Extrusor Nível 2' }
-  ];
+  const handleDeleteFuncionario = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir este funcionário?')) return;
+    
+    setLoading(true);
+    try {
+      const { error } = await supabase.from('funcionarios').delete().eq('id', id);
+      if (error) throw error;
+      addToast('Funcionário excluído.', 'success');
+      fetchData();
+    } catch (err: any) {
+      addToast(`Erro ao excluir: ${err.message}`, 'error');
+      setLoading(false);
+    }
+  };
 
-  if (loading) {
-    return <LoadingOverlay message="Carregando Quadro de Colaboradores..." />;
-  }
+  // --- Handlers para Vendas e Comissões ---
+  const handleOpenVendasModal = async (vendedor: Funcionario) => {
+    setSelectedVendedor(vendedor);
+    setIsVendasModalOpen(true);
+    setVendasLoading(true);
+    setVendasHistorico([]);
+    
+    try {
+      const { data, error } = await supabase
+        .from('pedidos')
+        .select(`
+          id,
+          codigo,
+          nome_cliente,
+          data_emissao,
+          status,
+          comissao_venda_percentual,
+          ordens_producao (
+            quantidade_planejada,
+            preco_venda_unitario
+          )
+        `)
+        .eq('vendedor_id', vendedor.id)
+        .order('data_emissao', { ascending: false });
+
+      if (error) throw error;
+      
+      const formatado = data.map((ped: any) => {
+        const faturamento = ped.ordens_producao?.reduce((acc: number, curr: any) => {
+          const qtd = Number(curr.quantidade_planejada) || 0;
+          const preco = Number(curr.preco_venda_unitario) || 0;
+          return acc + (qtd * preco);
+        }, 0) || 0;
+        const comissaoPercent = Number(ped.comissao_venda_percentual) || 0;
+        const comissaoValor = faturamento * (comissaoPercent / 100);
+        
+        return {
+          ...ped,
+          faturamento,
+          comissaoValor
+        };
+      });
+
+      setVendasHistorico(formatado);
+    } catch (err: any) {
+      addToast(`Erro ao buscar histórico: ${err.message}`, 'error');
+    } finally {
+      setVendasLoading(false);
+    }
+  };
+
+  // --- Handlers para Extrusoras ---
+  const handleOpenExtModal = (ext?: Extrusora) => {
+    if (ext) {
+      setExtForm({ id: ext.id, codigo: ext.codigo, numero: ext.numero });
+    } else {
+      setExtForm({ id: undefined, codigo: '', numero: '' });
+    }
+    setIsExtModalOpen(true);
+  };
+
+  const handleSaveExtrusora = async () => {
+    if (!extForm.codigo || !extForm.numero) {
+      addToast('Código e Número são obrigatórios.', 'error');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload = {
+        codigo: extForm.codigo,
+        numero: extForm.numero
+      };
+
+      if (extForm.id) {
+        // Edit
+        const { error } = await supabase
+          .from('extrusoras')
+          .update(payload)
+          .eq('id', extForm.id);
+        if (error) throw error;
+        addToast('Extrusora atualizada com sucesso!', 'success');
+      } else {
+        // Insert
+        const { error } = await supabase
+          .from('extrusoras')
+          .insert({
+            empresa_id: empresaId,
+            ...payload
+          });
+        if (error) throw error;
+        addToast('Extrusora cadastrada com sucesso!', 'success');
+      }
+      setIsExtModalOpen(false);
+      fetchData();
+    } catch (err: any) {
+      addToast(`Erro ao salvar: ${err.message}`, 'error');
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteExtrusora = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta extrusora? Funcionários vinculados a ela ficarão sem extrusora.')) return;
+    
+    setLoading(true);
+    try {
+      const { error } = await supabase.from('extrusoras').delete().eq('id', id);
+      if (error) throw error;
+      addToast('Extrusora excluída.', 'success');
+      fetchData();
+    } catch (err: any) {
+      addToast(`Erro ao excluir: ${err.message}`, 'error');
+      setLoading(false);
+    }
+  };
+
+  if (loading) return <LoadingOverlay />;
 
   return (
-    <div className="space-y-6" id="funcionarios-screen-container">
-      {/* Title Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-outline-variant pb-5">
+    <div className="space-y-6">
+      <div className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-xl font-black text-primary tracking-tight">CADASTRO E GESTÃO DE FUNCIONÁRIOS</h2>
-          <p className="text-xs text-outline">Gerenciamento completo de informações pessoais, regime de horas, ponto e qualidades operacionais.</p>
+          <h2 className="text-2xl font-black text-[#002046] flex items-center gap-2">
+            <span className="material-symbols-outlined notranslate text-primary text-[28px]">badge</span>
+            Operadores & Extrusoras
+          </h2>
+          <p className="text-sm text-on-surface-variant mt-1">
+            Gerencie o cadastro simples de funcionários e suas respectivas extrusoras.
+          </p>
+        </div>
+        
+        <div className="flex bg-surface-container-low rounded-xl p-1 shadow-xs border border-outline-variant/30 w-max">
+          <button
+            onClick={() => setActiveTab('FUNCIONARIOS')}
+            className={`px-6 py-2.5 rounded-lg text-xs font-bold transition-all uppercase tracking-wide flex items-center gap-2 ${
+              activeTab === 'FUNCIONARIOS' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface'
+            }`}
+          >
+            <span className="material-symbols-outlined notranslate text-[18px]">group</span>
+            Funcionários ({funcionarios.filter(f => !f.vendedor).length})
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('VENDEDORES')}
+            className={`px-6 py-2.5 rounded-lg text-xs font-bold transition-all uppercase tracking-wide flex items-center gap-2 ${
+              activeTab === 'VENDEDORES' ? 'bg-[#ffc107] text-[#5c4000] shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface'
+            }`}
+          >
+            <span className="material-symbols-outlined notranslate text-[18px]">sell</span>
+            Vendedores ({funcionarios.filter(f => f.vendedor).length})
+          </button>
+
+          <button
+            onClick={() => setActiveTab('EXTRUSORAS')}
+            className={`px-6 py-2.5 rounded-lg text-xs font-bold transition-all uppercase tracking-wide flex items-center gap-2 ${
+              activeTab === 'EXTRUSORAS' ? 'bg-secondary text-on-secondary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface'
+            }`}
+          >
+            <span className="material-symbols-outlined notranslate text-[18px]">precision_manufacturing</span>
+            Extrusoras ({extrusoras.length})
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
-        {/* Left Column: List of Employees */}
-        <div className="lg:col-span-4 bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant shadow-xs space-y-4">
-          <div className="flex items-center gap-2 bg-surface-container-low px-3 py-2 rounded-xl border border-outline-variant/60">
-            <Search size={16} className="text-outline" />
-            <input
-              type="text"
-              placeholder="Buscar por nome, cargo ou ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-transparent border-none text-xs focus:outline-none w-full text-primary"
-            />
-          </div>
-
-          <div className="space-y-2 overflow-y-auto max-h-[600px] pr-1">
-            {filteredEmployees.length === 0 ? (
-              <p className="text-xs text-center text-outline py-8">Nenhum funcionário encontrado.</p>
-            ) : (
-              filteredEmployees.map(emp => {
-                const activeQualitiesCount = Object.values(emp.qualities).filter(Boolean).length;
-                const isSelected = emp.id === selectedEmployeeId && !isAddingNew;
-
-                return (
-                  <div
-                    key={emp.id}
-                    onClick={() => {
-                      setSelectedEmployeeId(emp.id);
-                      setIsAddingNew(false);
-                    }}
-                    className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
-                      isSelected
-                        ? 'bg-primary-container/25 border-primary text-primary font-medium'
-                        : 'bg-surface-bright hover:bg-surface-container-low border-outline-variant/60'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs ${
-                        isSelected ? 'bg-primary text-white' : 'bg-surface-container-high text-primary'
-                      }`}>
-                        {emp.firstName[0]}{emp.lastName[0]}
-                      </div>
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-bold">{emp.firstName} {emp.lastName}</span>
+      {activeTab === 'VENDEDORES' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-outline-variant/30 overflow-hidden flex-1 flex flex-col min-h-0">
+          <div className="overflow-y-auto flex-1 custom-scrollbar">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-surface-container-lowest sticky top-0 z-10 shadow-[0_1px_0_0_rgba(0,0,0,0.05)]">
+                <tr className="text-on-surface-variant font-bold uppercase text-[10px] tracking-wider">
+                  <th className="py-4 px-6 rounded-tl-xl">Nome do Vendedor</th>
+                  <th className="py-4 px-6">CPF</th>
+                  <th className="py-4 px-6 text-center">Status</th>
+                  <th className="py-4 px-6 text-right rounded-tr-xl">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-outline-variant/30">
+                {funcionarios.filter(f => f.vendedor).length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-12 text-center text-outline text-sm">
+                      Nenhum vendedor cadastrado ainda.
+                    </td>
+                  </tr>
+                ) : (
+                  funcionarios.filter(f => f.vendedor).map(func => (
+                    <tr key={func.id} className="hover:bg-[#fff9e6] transition-colors">
+                      <td className="py-4 px-6 font-semibold text-on-surface">{func.nome}</td>
+                      <td className="py-4 px-6 font-mono text-xs font-semibold">{func.cpf || 'Não informado'}</td>
+                      <td className="py-4 px-6 text-center">
+                        <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-[10px] font-black uppercase">
+                          Ativo
+                        </span>
+                      </td>
+                      <td className="py-4 px-6 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleOpenVendasModal(func)}
+                            className="bg-[#ffc107] text-[#5c4000] hover:bg-[#e0a800] p-1.5 rounded-lg transition-colors flex items-center justify-center gap-1.5 px-3 shadow-sm font-bold text-xs uppercase"
+                          >
+                            <span className="material-symbols-outlined notranslate text-[18px]">receipt_long</span>
+                            Histórico de Vendas
+                          </button>
+                          <button
+                            onClick={() => handleOpenFuncModal(func)}
+                            className="text-primary hover:bg-primary-container p-1.5 rounded-lg transition-colors flex items-center justify-center"
+                            title="Editar"
+                          >
+                            <span className="material-symbols-outlined notranslate text-[20px]">edit</span>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteFuncionario(func.id)}
+                            className="text-error hover:bg-error-container p-1.5 rounded-lg transition-colors flex items-center justify-center"
+                            title="Excluir"
+                          >
+                            <span className="material-symbols-outlined notranslate text-[20px]">delete</span>
+                          </button>
                         </div>
-                        <p className="text-[10px] text-outline line-clamp-1">{emp.role}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex flex-col items-end gap-1">
-                      <span className="text-[10px] bg-secondary-container/35 text-on-secondary-container px-1.5 py-0.5 rounded-md font-bold flex items-center gap-1">
-                        <Award size={10} />
-                        {activeQualitiesCount}
-                      </span>
-                      <ChevronRight size={14} className="text-outline" />
-                    </div>
-                  </div>
-                );
-              })
-            )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
+      )}
 
-        {/* Right Column: Detailed Employee View & Edit or New Form */}
-        <div className="lg:col-span-8 space-y-6">
-          
-          {isAddingNew ? (
-            /* ================= ADD NEW EMPLOYEE FORM ================= */
-            <form onSubmit={handleCreateEmployee} className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-xs space-y-6">
-              <div className="flex justify-between items-center border-b border-outline-variant pb-4">
-                <div className="flex items-center gap-2 text-primary">
-                  <UserPlus size={20} className="text-secondary" />
-                  <div>
-                    <h3 className="text-base font-bold">Novo Cadastro de Funcionário</h3>
-                    <p className="text-xs text-outline">Preencha os dados dos blocos operacionais para criar a ficha cadastral.</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsAddingNew(false)}
-                  className="p-2 hover:bg-surface-container rounded-full text-outline hover:text-primary transition-colors"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              {/* FIRST BLOCK: Dados Pessoais */}
-              <div className="space-y-4">
-                <h4 className="text-xs font-black text-secondary uppercase tracking-wider flex items-center gap-1">
-                  <span>1. Dados Pessoais</span>
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-[11px] font-bold text-outline uppercase mb-1">Código (ID)</label>
-                    <input
-                      type="text"
-                      required
-                      value={newEmp.id}
-                      onChange={(e) => setNewEmp({ ...newEmp, id: e.target.value.toUpperCase() })}
-                      placeholder="Ex: EMP-004"
-                      className="w-full text-xs bg-surface-bright border border-outline-variant rounded-lg p-2.5 text-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-outline uppercase mb-1">Nome</label>
-                    <input
-                      type="text"
-                      required
-                      value={newEmp.firstName}
-                      onChange={(e) => setNewEmp({ ...newEmp, firstName: e.target.value })}
-                      placeholder="Ex: Roberto"
-                      className="w-full text-xs bg-surface-bright border border-outline-variant rounded-lg p-2.5 text-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-outline uppercase mb-1">Sobrenome</label>
-                    <input
-                      type="text"
-                      required
-                      value={newEmp.lastName}
-                      onChange={(e) => setNewEmp({ ...newEmp, lastName: e.target.value })}
-                      placeholder="Ex: Santos"
-                      className="w-full text-xs bg-surface-bright border border-outline-variant rounded-lg p-2.5 text-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-[11px] font-bold text-outline uppercase mb-1">Data de Nascimento</label>
-                    <input
-                      type="date"
-                      value={newEmp.birthDate}
-                      onChange={(e) => setNewEmp({ ...newEmp, birthDate: e.target.value })}
-                      className="w-full text-xs bg-surface-bright border border-outline-variant rounded-lg p-2.5 text-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-outline uppercase mb-1">Estado Civil</label>
-                    <select
-                      value={newEmp.civilStatus}
-                      onChange={(e) => setNewEmp({ ...newEmp, civilStatus: e.target.value })}
-                      className="w-full text-xs bg-surface-bright border border-outline-variant rounded-lg p-2.5 text-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    >
-                      <option value="Solteiro(a)">Solteiro(a)</option>
-                      <option value="Casado(a)">Casado(a)</option>
-                      <option value="Divorciado(a)">Divorciado(a)</option>
-                      <option value="Viúvo(a)">Viúvo(a)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-outline uppercase mb-1">CEP</label>
-                    <input
-                      type="text"
-                      value={newEmp.zipCode}
-                      onChange={(e) => setNewEmp({ ...newEmp, zipCode: formatCEP(e.target.value) })}
-                      placeholder="Ex: 09750-000"
-                      className="w-full text-xs bg-surface-bright border border-outline-variant rounded-lg p-2.5 text-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                  <div className="md:col-span-6">
-                    <label className="block text-[11px] font-bold text-outline uppercase mb-1">Endereço</label>
-                    <input
-                      type="text"
-                      value={newEmp.address}
-                      onChange={(e) => setNewEmp({ ...newEmp, address: e.target.value })}
-                      placeholder="Ex: Av. Industrial, 1200"
-                      className="w-full text-xs bg-surface-bright border border-outline-variant rounded-lg p-2.5 text-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                  <div className="md:col-span-4">
-                    <label className="block text-[11px] font-bold text-outline uppercase mb-1">Cidade</label>
-                    <input
-                      type="text"
-                      value={newEmp.city}
-                      onChange={(e) => setNewEmp({ ...newEmp, city: e.target.value })}
-                      placeholder="Ex: São Paulo"
-                      className="w-full text-xs bg-surface-bright border border-outline-variant rounded-lg p-2.5 text-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-[11px] font-bold text-outline uppercase mb-1">Estado</label>
-                    <input
-                      type="text"
-                      value={newEmp.state}
-                      maxLength={2}
-                      onChange={(e) => setNewEmp({ ...newEmp, state: e.target.value.toUpperCase() })}
-                      placeholder="SP"
-                      className="w-full text-xs bg-surface-bright border border-outline-variant rounded-lg p-2.5 text-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* SECOND BLOCK: Dados Contratuais */}
-              <div className="space-y-4 pt-4 border-t border-outline-variant/60">
-                <h4 className="text-xs font-black text-secondary uppercase tracking-wider flex items-center gap-1">
-                  <span>2. Dados Contratuais</span>
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-[11px] font-bold text-outline uppercase mb-1">Data de Admissão</label>
-                    <input
-                      type="date"
-                      value={newEmp.admissionDate}
-                      onChange={(e) => setNewEmp({ ...newEmp, admissionDate: e.target.value })}
-                      className="w-full text-xs bg-surface-bright border border-outline-variant rounded-lg p-2.5 text-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-outline uppercase mb-1">Função / Cargo</label>
-                    <input
-                      type="text"
-                      required
-                      value={newEmp.role}
-                      onChange={(e) => setNewEmp({ ...newEmp, role: e.target.value })}
-                      placeholder="Ex: Auxiliar Técnico"
-                      className="w-full text-xs bg-surface-bright border border-outline-variant rounded-lg p-2.5 text-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-outline uppercase mb-1">Salário Hora (R$)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      required
-                      value={newEmp.hourlyWage}
-                      onChange={(e) => setNewEmp({ ...newEmp, hourlyWage: Number(e.target.value) })}
-                      placeholder="R$ 25,00"
-                      className="w-full text-xs bg-surface-bright border border-outline-variant rounded-lg p-2.5 text-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-outline uppercase mb-1">Regime de Horas (Dia)</label>
-                    <input
-                      type="number"
-                      value={newEmp.workingHoursRegime}
-                      onChange={(e) => setNewEmp({ ...newEmp, workingHoursRegime: Number(e.target.value) })}
-                      placeholder="8"
-                      className="w-full text-xs bg-surface-bright border border-outline-variant rounded-lg p-2.5 text-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                </div>
-              </div>
-
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-outline-variant">
-                <button
-                  type="button"
-                  onClick={() => setIsAddingNew(false)}
-                  className="bg-surface-container-high hover:bg-surface-container-highest text-primary font-bold py-2.5 px-5 rounded-xl text-xs transition-colors cursor-pointer"
-                >
-                  CANCELAR
-                </button>
-                <button
-                  type="submit"
-                  className="bg-secondary hover:bg-secondary/95 text-white font-bold py-2.5 px-5 rounded-xl text-xs tracking-wider transition-all shadow-sm cursor-pointer"
-                >
-                  GRAVAR CADASTRO
-                </button>
-              </div>
-            </form>
-          ) : currentEmployee ? (
-            /* ================= VIEW / EDIT PROFILE VIEW ================= */
-            <div className="space-y-6">
-              
-              {/* Employee Top Profile Card */}
-              <div className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-2xl bg-primary text-white flex items-center justify-center text-lg font-black shadow-inner">
-                    {currentEmployee.firstName[0]}{currentEmployee.lastName[0]}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-extrabold text-primary">{currentEmployee.firstName} {currentEmployee.lastName}</h3>
-                    </div>
-                    <p className="text-xs text-outline font-medium flex items-center gap-1 mt-0.5">
-                      <Briefcase size={12} className="text-secondary" />
-                      {currentEmployee.role}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      if (editForm) {
-                        setIsEditing(!isEditing);
-                      }
-                    }}
-                    className={`flex items-center gap-1.5 font-bold py-2 px-3.5 rounded-xl text-xs transition-all cursor-pointer border ${
-                      isEditing 
-                        ? 'bg-primary border-primary text-white hover:brightness-110' 
-                        : 'bg-surface-bright border-outline-variant/80 text-primary hover:bg-surface-container-low'
-                    }`}
-                  >
-                    {isEditing ? <Check size={14} /> : <Edit3 size={14} />}
-                    {isEditing ? 'Visualizar' : 'Editar Ficha'}
-                  </button>
-                  
-                  <button
-                    onClick={() => handleDeleteEmployee(currentEmployee.id)}
-                    className="p-2 bg-error-container/20 hover:bg-error-container text-on-error-container rounded-xl transition-colors cursor-pointer"
-                    title="Excluir Funcionário"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Main Content Fields: Block 1 & 2 */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* FIRST BLOCK: Dados Pessoais */}
-                <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant shadow-xs space-y-4">
-                  <div className="flex justify-between items-center border-b border-surface-container pb-2">
-                    <h4 className="text-xs font-black text-secondary uppercase tracking-wider flex items-center gap-1.5">
-                      <User size={14} className="text-secondary" />
-                      <span>Bloco 1: Dados Pessoais</span>
-                    </h4>
-                  </div>
-
-                  {isEditing && editForm ? (
-                    <div className="space-y-3.5 text-xs">
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[10px] font-bold text-outline uppercase mb-0.5">Nome</label>
-                          <input
-                            type="text"
-                            required
-                            value={editForm.firstName}
-                            onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })}
-                            className="w-full bg-surface-bright border border-outline-variant rounded-lg p-2 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-outline uppercase mb-0.5">Sobrenome</label>
-                          <input
-                            type="text"
-                            required
-                            value={editForm.lastName}
-                            onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })}
-                            className="w-full bg-surface-bright border border-outline-variant rounded-lg p-2 focus:outline-none"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[10px] font-bold text-outline uppercase mb-0.5">Nascimento</label>
-                          <input
-                            type="date"
-                            value={editForm.birthDate}
-                            onChange={(e) => setEditForm({ ...editForm, birthDate: e.target.value })}
-                            className="w-full bg-surface-bright border border-outline-variant rounded-lg p-2 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-outline uppercase mb-0.5">Estado Civil</label>
-                          <select
-                            value={editForm.civilStatus}
-                            onChange={(e) => setEditForm({ ...editForm, civilStatus: e.target.value })}
-                            className="w-full bg-surface-bright border border-outline-variant rounded-lg p-2 focus:outline-none"
+      {activeTab === 'FUNCIONARIOS' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-outline-variant/30 overflow-hidden flex-1 flex flex-col min-h-0">
+          <div className="overflow-y-auto flex-1 custom-scrollbar">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-surface-container-lowest sticky top-0 z-10 shadow-[0_1px_0_0_rgba(0,0,0,0.05)]">
+                <tr className="text-on-surface-variant font-bold uppercase text-[10px] tracking-wider">
+                  <th className="py-4 px-6 rounded-tl-xl">Nome</th>
+                  <th className="py-4 px-6">Atribuição / Cargo</th>
+                  <th className="py-4 px-6 text-center">Status</th>
+                  <th className="py-4 px-6 text-right rounded-tr-xl">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-outline-variant/30">
+                {funcionarios.filter(f => !f.vendedor).length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-12 text-center text-outline text-sm">
+                      Nenhum funcionário operacional encontrado.
+                    </td>
+                  </tr>
+                ) : (
+                  funcionarios.filter(f => !f.vendedor).map(func => (
+                    <tr key={func.id} className="hover:bg-surface-container-lowest/50 transition-colors">
+                      <td className="py-4 px-6 font-semibold text-on-surface">{func.nome}</td>
+                      <td className="py-4 px-6">
+                        {func.extrusora ? (
+                          <span className="bg-primary-container text-on-primary-container px-3 py-1 rounded-full text-[10px] font-bold">
+                            {func.extrusora.codigo} - #{func.extrusora.numero}
+                          </span>
+                        ) : (
+                          <span className="text-outline text-xs italic">Sem extrusora</span>
+                        )}
+                      </td>
+                      <td className="py-4 px-6 text-center">
+                        <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-[10px] font-black uppercase">
+                          Ativo
+                        </span>
+                      </td>
+                      <td className="py-4 px-6 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleOpenFuncModal(func)}
+                            className="text-primary hover:bg-primary-container p-1.5 rounded-lg transition-colors flex items-center justify-center"
+                            title="Editar"
                           >
-                            <option value="Solteiro(a)">Solteiro(a)</option>
-                            <option value="Casado(a)">Casado(a)</option>
-                            <option value="Divorciado(a)">Divorciado(a)</option>
-                            <option value="Viúvo(a)">Viúvo(a)</option>
-                          </select>
+                            <span className="material-symbols-outlined notranslate text-[20px]">edit</span>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteFuncionario(func.id)}
+                            className="text-error hover:bg-error-container p-1.5 rounded-lg transition-colors flex items-center justify-center"
+                            title="Excluir"
+                          >
+                            <span className="material-symbols-outlined notranslate text-[20px]">delete</span>
+                          </button>
                         </div>
-                      </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
-                      <div>
-                        <label className="block text-[10px] font-bold text-outline uppercase mb-0.5">Endereço</label>
-                        <input
-                          type="text"
-                          value={editForm.address}
-                          onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-                          className="w-full bg-surface-bright border border-outline-variant rounded-lg p-2 focus:outline-none"
-                        />
-                      </div>
+      {activeTab === 'EXTRUSORAS' && (
+        <div className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-sm animate-fade-in">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-bold text-on-surface">Cadastro de Extrusoras</h3>
+            <button
+              onClick={() => activeTab === 'EXTRUSORAS' ? handleOpenExtModal() : handleOpenFuncModal()}
+              className={`px-6 py-2.5 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center gap-2 ${
+                activeTab === 'EXTRUSORAS' ? 'bg-secondary hover:bg-secondary-dark' : (activeTab === 'VENDEDORES' ? 'bg-[#ffc107] text-[#5c4000] hover:bg-[#e0a800]' : 'bg-primary hover:bg-primary-dark')
+              }`}
+            >
+              <span className="material-symbols-outlined notranslate text-[20px]">add</span>
+              {activeTab === 'EXTRUSORAS' ? 'Nova Extrusora' : 'Novo Funcionário'}
+            </button>
+          </div>
 
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="col-span-2">
-                          <label className="block text-[10px] font-bold text-outline uppercase mb-0.5">Cidade</label>
-                          <input
-                            type="text"
-                            value={editForm.city}
-                            onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
-                            className="w-full bg-surface-bright border border-outline-variant rounded-lg p-2 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-outline uppercase mb-0.5">Estado</label>
-                          <input
-                            type="text"
-                            maxLength={2}
-                            value={editForm.state}
-                            onChange={(e) => setEditForm({ ...editForm, state: e.target.value.toUpperCase() })}
-                            className="w-full bg-surface-bright border border-outline-variant rounded-lg p-2 focus:outline-none text-center"
-                          />
-                        </div>
-                      </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm border-collapse">
+              <thead>
+                <tr className="border-b border-outline-variant text-on-surface-variant uppercase text-xs">
+                  <th className="pb-3 font-bold">Código (Ex: EXT)</th>
+                  <th className="pb-3 font-bold">Número (Ex: 01)</th>
+                  <th className="pb-3 font-bold text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-outline-variant/50">
+                {extrusoras.map(ext => (
+                  <tr key={ext.id} className="hover:bg-surface-container-lowest/50 transition-colors">
+                    <td className="py-4 font-semibold text-on-surface">{ext.codigo}</td>
+                    <td className="py-4 font-mono text-outline">{ext.numero}</td>
+                    <td className="py-4 text-right space-x-2">
+                      <button 
+                        onClick={() => handleOpenExtModal(ext)}
+                        className="p-2 text-on-surface-variant hover:bg-surface-container hover:text-primary rounded-lg transition-colors"
+                        title="Editar"
+                      >
+                        <span className="material-symbols-outlined notranslate text-[18px]">edit</span>
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteExtrusora(ext.id)}
+                        className="p-2 text-on-surface-variant hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors"
+                        title="Excluir"
+                      >
+                        <span className="material-symbols-outlined notranslate text-[18px]">delete</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {extrusoras.length === 0 && (
+                  <tr>
+                    <td colSpan={3} className="py-8 text-center text-on-surface-variant">
+                      Nenhuma extrusora cadastrada.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
-                      <div>
-                        <label className="block text-[10px] font-bold text-outline uppercase mb-0.5">CEP</label>
-                        <input
-                          type="text"
-                          value={editForm.zipCode}
-                          onChange={(e) => setEditForm({ ...editForm, zipCode: formatCEP(e.target.value) })}
-                          className="w-full bg-surface-bright border border-outline-variant rounded-lg p-2 focus:outline-none"
-                        />
-                      </div>
-
-                      <div className="pt-2 flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditForm({ ...currentEmployee });
-                            setIsEditing(false);
-                          }}
-                          className="px-3 py-1.5 bg-surface-container rounded-lg text-[11px] font-bold"
-                        >
-                          Descartar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleSaveEdit}
-                          className="px-3 py-1.5 bg-secondary text-white rounded-lg text-[11px] font-bold"
-                        >
-                          Salvar Alterações
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4 text-xs">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <span className="block text-[10px] font-bold text-outline uppercase">Nome Completo</span>
-                          <span className="font-semibold text-primary">{currentEmployee.firstName} {currentEmployee.lastName}</span>
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-bold text-outline uppercase">Nascimento</span>
-                          <span className="font-semibold text-primary">
-                            {currentEmployee.birthDate ? currentEmployee.birthDate.split('-').reverse().join('/') : 'N/A'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <span className="block text-[10px] font-bold text-outline uppercase">Estado Civil</span>
-                          <span className="font-semibold text-primary">{currentEmployee.civilStatus}</span>
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-bold text-outline uppercase">CEP</span>
-                          <span className="font-semibold text-primary">{currentEmployee.zipCode || 'Não informado'}</span>
-                        </div>
-                      </div>
-
-                      <div>
-                        <span className="block text-[10px] font-bold text-outline uppercase text-left">Endereço de Residência</span>
-                        <p className="font-semibold text-primary leading-tight text-left">
-                          {currentEmployee.address ? `${currentEmployee.address}, ${currentEmployee.city} - ${currentEmployee.state}` : 'Endereço não cadastrado'}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* SECOND BLOCK: Dados Contratuais & Salário Mês */}
-                <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant shadow-xs space-y-4">
-                  <div className="flex justify-between items-center border-b border-surface-container pb-2">
-                    <h4 className="text-xs font-black text-secondary uppercase tracking-wider flex items-center gap-1.5">
-                      <Briefcase size={14} className="text-secondary" />
-                      <span>Bloco 2: Dados Contratuais</span>
-                    </h4>
-                  </div>
-
-                  {isEditing && editForm ? (
-                    <div className="space-y-3 text-xs">
-                      <div>
-                        <label className="block text-[10px] font-bold text-outline uppercase mb-0.5">Função</label>
-                        <input
-                          type="text"
-                          required
-                          value={editForm.role}
-                          onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
-                          className="w-full bg-surface-bright border border-outline-variant rounded-lg p-2 focus:outline-none"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[10px] font-bold text-outline uppercase mb-0.5">Admissão</label>
-                          <input
-                            type="date"
-                            value={editForm.admissionDate}
-                            onChange={(e) => setEditForm({ ...editForm, admissionDate: e.target.value })}
-                            className="w-full bg-surface-bright border border-outline-variant rounded-lg p-2 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-outline uppercase mb-0.5">Regime (h/dia)</label>
-                          <input
-                            type="number"
-                            value={editForm.workingHoursRegime}
-                            onChange={(e) => setEditForm({ ...editForm, workingHoursRegime: Number(e.target.value) })}
-                            className="w-full bg-surface-bright border border-outline-variant rounded-lg p-2 focus:outline-none"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-bold text-outline uppercase mb-0.5">Salário Hora (R$)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={editForm.hourlyWage}
-                          onChange={(e) => setEditForm({ ...editForm, hourlyWage: Number(e.target.value) })}
-                          className="w-full bg-surface-bright border border-outline-variant rounded-lg p-2 focus:outline-none"
-                        />
-                      </div>
-
-                      <div className="pt-2 flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditForm({ ...currentEmployee });
-                            setIsEditing(false);
-                          }}
-                          className="px-3 py-1.5 bg-surface-container rounded-lg text-[11px] font-bold"
-                        >
-                          Descartar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleSaveEdit}
-                          className="px-3 py-1.5 bg-secondary text-white rounded-lg text-[11px] font-bold"
-                        >
-                          Salvar Alterações
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4 text-xs">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <span className="block text-[10px] font-bold text-outline uppercase">Data de Admissão</span>
-                          <span className="font-semibold text-primary">
-                            {currentEmployee.admissionDate ? currentEmployee.admissionDate.split('-').reverse().join('/') : 'N/A'}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-bold text-outline uppercase">Regime Diário</span>
-                          <span className="font-semibold text-primary">{currentEmployee.workingHoursRegime} horas por dia</span>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <span className="block text-[10px] font-bold text-outline uppercase">Salário por Hora</span>
-                          <span className="font-mono font-bold text-primary">R$ {currentEmployee.hourlyWage.toFixed(2)}</span>
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-bold text-outline uppercase">Total de Horas no Mês</span>
-                          <span className="font-mono font-bold text-primary flex items-center gap-1">
-                            <Clock size={11} className="text-secondary" />
-                            {formatHours(calculateTotalHours(currentEmployee.punctualityHistory))}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* CALCULATED DYNAMIC FIELD: Salário Mês */}
-                      <div className="bg-surface-container-low p-3.5 rounded-xl border border-outline-variant/60 flex items-center justify-between">
-                        <div>
-                          <span className="block text-[10px] font-bold text-secondary uppercase">Salário Mês (Calculado)</span>
-                          <p className="text-[10px] text-outline leading-tight mt-0.5">Soma das horas trabalhadas × Salário Hora</p>
-                        </div>
-                        <div className="text-right">
-                          <span className="font-mono text-base font-extrabold text-primary">
-                            R$ {calculateMonthlySalary(currentEmployee).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                          <p className="text-[9px] font-mono text-outline mt-0.5">
-                            {calculateTotalHours(currentEmployee.punctualityHistory).toFixed(2)}h × R$ {currentEmployee.hourlyWage.toFixed(2)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-              </div>
-
-
-              {/* THIRD BLOCK: Histórico de Pontualidade */}
-              <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant shadow-xs space-y-5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-surface-container pb-2.5">
-                  <div>
-                    <h4 className="text-xs font-black text-secondary uppercase tracking-wider flex items-center gap-1.5">
-                      <Clock size={14} className="text-secondary" />
-                      <span>Bloco 3: Histórico de Pontualidade</span>
-                    </h4>
-                    <p className="text-[10px] text-outline">Lançamento diário das horas cumpridas e cálculo automático de horas extras.</p>
-                  </div>
-                  
-                  <div className="bg-surface-container px-3 py-1 rounded-lg text-[10px] font-bold text-primary self-start">
-                    Mês: {formatHours(calculateTotalHours(currentEmployee.punctualityHistory))} Trab. | Extra: {formatHours(calculateTotalExtraHours(currentEmployee.punctualityHistory, currentEmployee.workingHoursRegime))}
-                  </div>
-                </div>
-
-                {/* Inline Add Record Form */}
-                <form onSubmit={handleAddPunctualityRecord} className="p-4 bg-surface-container-low rounded-xl border border-outline-variant/60 space-y-3">
-                  <div className="text-[10px] font-black text-primary uppercase tracking-wider">Lançar Novo Ponto Diário</div>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                    <div>
-                      <label className="block text-[9px] font-semibold text-outline uppercase mb-0.5">Dia</label>
-                      <input
-                        type="date"
-                        required
-                        value={newPunct.date}
-                        onChange={(e) => setNewPunct({ ...newPunct, date: e.target.value })}
-                        className="w-full text-xs bg-surface-bright border border-outline-variant rounded-md p-1.5 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[9px] font-semibold text-outline uppercase mb-0.5">Hora Chegada</label>
-                      <input
-                        type="time"
-                        required
-                        value={newPunct.arrivalTime}
-                        onChange={(e) => setNewPunct({ ...newPunct, arrivalTime: e.target.value })}
-                        className="w-full text-xs bg-surface-bright border border-outline-variant rounded-md p-1.5 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[9px] font-semibold text-outline uppercase mb-0.5">Pausa Almoço</label>
-                      <input
-                        type="time"
-                        required
-                        value={newPunct.lunchStart}
-                        onChange={(e) => setNewPunct({ ...newPunct, lunchStart: e.target.value })}
-                        className="w-full text-xs bg-surface-bright border border-outline-variant rounded-md p-1.5 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[9px] font-semibold text-outline uppercase mb-0.5">Retorno Almoço</label>
-                      <input
-                        type="time"
-                        required
-                        value={newPunct.lunchEnd}
-                        onChange={(e) => setNewPunct({ ...newPunct, lunchEnd: e.target.value })}
-                        className="w-full text-xs bg-surface-bright border border-outline-variant rounded-md p-1.5 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[9px] font-semibold text-outline uppercase mb-0.5">Hora Saída</label>
-                      <input
-                        type="time"
-                        required
-                        value={newPunct.departureTime}
-                        onChange={(e) => setNewPunct({ ...newPunct, departureTime: e.target.value })}
-                        className="w-full text-xs bg-surface-bright border border-outline-variant rounded-md p-1.5 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex justify-end pt-1">
-                    <button
-                      type="submit"
-                      className="flex items-center gap-1 bg-secondary text-white text-[10px] font-black px-3.5 py-1.5 rounded-lg cursor-pointer hover:bg-secondary/90 transition-colors"
-                    >
-                      <Plus size={12} />
-                      ADICIONAR AO HISTÓRICO
-                    </button>
-                  </div>
-                </form>
-
-                {/* Punctuality Table */}
-                <div className="overflow-x-auto rounded-xl border border-outline-variant/60">
-                  <table className="w-full border-collapse text-left text-xs bg-surface-bright">
-                    <thead>
-                      <tr className="bg-surface-container border-b border-outline-variant/70 text-outline text-[10px] font-black uppercase">
-                        <th className="p-3">Dia</th>
-                        <th className="p-3">Hora Chegada</th>
-                        <th className="p-3">Parada Almoço</th>
-                        <th className="p-3">Retorno Almoço</th>
-                        <th className="p-3">Hora Saída</th>
-                        <th className="p-3 text-center">Horas Trab.</th>
-                        <th className="p-3 text-center">H. Extras ({currentEmployee.workingHoursRegime}h regime)</th>
-                        <th className="p-3 text-center">Ações</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-outline-variant/35 text-primary">
-                      {currentEmployee.punctualityHistory.length === 0 ? (
-                        <tr>
-                          <td colSpan={8} className="p-4 text-center text-outline italic">Sem registros históricos cadastrados para este funcionário.</td>
-                        </tr>
-                      ) : (
-                        currentEmployee.punctualityHistory.map((p) => {
-                          const worked = calculateDailyHours(p);
-                          const extra = calculateDailyExtra(p, currentEmployee.workingHoursRegime);
-                          return (
-                            <tr key={p.id} className="hover:bg-surface-container-low/50">
-                              <td className="p-3 font-semibold">{p.date}</td>
-                              <td className="p-3 font-mono">{p.arrivalTime}</td>
-                              <td className="p-3 font-mono text-outline">{p.lunchStart}</td>
-                              <td className="p-3 font-mono text-outline">{p.lunchEnd}</td>
-                              <td className="p-3 font-mono">{p.departureTime}</td>
-                              <td className="p-3 text-center font-mono font-medium">{worked.toFixed(2)}h</td>
-                              <td className="p-3 text-center">
-                                {extra > 0 ? (
-                                  <span className="font-mono bg-tertiary-fixed text-on-tertiary-fixed font-bold px-2 py-0.5 rounded text-[10px]">
-                                    +{extra.toFixed(2)}h extra
-                                  </span>
-                                ) : (
-                                  <span className="font-mono text-outline text-[10px]">-</span>
-                                )}
-                              </td>
-                              <td className="p-3 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeletePunctualityRecord(p.id)}
-                                  className="text-error hover:text-error/85 hover:bg-error-container/20 p-1.5 rounded-lg transition-colors"
-                                >
-                                  <Trash2 size={13} />
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-
-
-            </div>
-          ) : (
-            <div className="bg-surface-container-lowest p-12 rounded-2xl border border-outline-variant shadow-xs text-center space-y-3">
-              <User className="text-outline mx-auto animate-bounce" size={40} />
-              <h3 className="text-sm font-bold text-primary">Nenhum Funcionário Cadastrado</h3>
-              <p className="text-xs text-outline max-w-sm mx-auto">Comece adicionando seu primeiro funcionário industrial no botão acima para monitorar presença, regime e qualidades.</p>
-              <button
-                onClick={handleStartAddNew}
-                className="mt-2 bg-secondary text-white font-bold text-xs py-2 px-4 rounded-xl cursor-pointer hover:bg-secondary/90 transition-all"
+      {/* MODAL: FUNCIONARIO */}
+      {isFuncModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-surface-container-lowest rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="flex justify-between items-center p-6 border-b border-outline-variant">
+              <h3 className="text-lg font-black text-on-surface">
+                {funcForm.id ? 'Editar Funcionário' : 'Novo Funcionário'}
+              </h3>
+              <button 
+                onClick={() => setIsFuncModalOpen(false)}
+                className="text-on-surface-variant hover:bg-surface-container p-2 rounded-full transition-colors"
               >
-                + Cadastrar Primeiro Funcionário
+                <span className="material-symbols-outlined notranslate">close</span>
               </button>
             </div>
-          )}
+            
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-on-surface-variant uppercase mb-2">Nome Completo</label>
+                <input
+                  type="text"
+                  value={funcForm.nome || ''}
+                  onChange={e => setFuncForm({...funcForm, nome: e.target.value})}
+                  className="w-full border border-outline-variant rounded-xl p-3 bg-surface-container-lowest focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                  placeholder="Ex: João da Silva"
+                />
+              </div>
 
+              <div className="flex items-center gap-2 py-2">
+                <input
+                  type="checkbox"
+                  id="vendedor-checkbox"
+                  checked={funcForm.vendedor || false}
+                  onChange={e => setFuncForm({...funcForm, vendedor: e.target.checked})}
+                  className="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary"
+                />
+                <label htmlFor="vendedor-checkbox" className="text-xs font-bold text-on-surface select-none cursor-pointer uppercase">
+                  É Vendedor? (Vendas e Comissão)
+                </label>
+              </div>
+
+              {funcForm.vendedor ? (
+                <div>
+                  <label className="block text-xs font-bold text-on-surface-variant uppercase mb-2">CPF do Vendedor</label>
+                  <input
+                    type="text"
+                    value={funcForm.cpf || ''}
+                    onChange={e => setFuncForm({...funcForm, cpf: formatCPF(e.target.value)})}
+                    className="w-full border border-outline-variant rounded-xl p-3 bg-surface-container-lowest focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                    placeholder="000.000.000-00"
+                    maxLength={14}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-bold text-on-surface-variant uppercase mb-2">Extrusora Vinculada (Opcional)</label>
+                  <select
+                    value={funcForm.extrusora_id || ''}
+                    onChange={e => setFuncForm({...funcForm, extrusora_id: e.target.value})}
+                    className="w-full border border-outline-variant rounded-xl p-3 bg-surface-container-lowest focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all appearance-none"
+                  >
+                    <option value="">-- Sem vínculo --</option>
+                    {extrusoras.map(ext => (
+                      <option key={ext.id} value={ext.id}>{ext.codigo} - #{ext.numero}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 bg-surface-container-lowest border-t border-outline-variant flex justify-end gap-3">
+              <button
+                onClick={() => setIsFuncModalOpen(false)}
+                className="px-6 py-2 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveFuncionario}
+                className="px-6 py-2 bg-primary hover:bg-primary-dark text-white rounded-xl text-sm font-bold shadow-sm transition-all"
+              >
+                Salvar
+              </button>
+            </div>
+          </div>
         </div>
+      )}
 
-      </div>
+      {/* MODAL: EXTRUSORA */}
+      {isExtModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-surface-container-lowest rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
+            <div className="flex justify-between items-center p-6 border-b border-outline-variant">
+              <h3 className="text-lg font-black text-on-surface">
+                {extForm.id ? 'Editar Extrusora' : 'Nova Extrusora'}
+              </h3>
+              <button 
+                onClick={() => setIsExtModalOpen(false)}
+                className="text-on-surface-variant hover:bg-surface-container p-2 rounded-full transition-colors"
+              >
+                <span className="material-symbols-outlined notranslate">close</span>
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-on-surface-variant uppercase mb-2">Código</label>
+                <input
+                  type="text"
+                  value={extForm.codigo || ''}
+                  onChange={e => setExtForm({...extForm, codigo: e.target.value})}
+                  className="w-full border border-outline-variant rounded-xl p-3 bg-surface-container-lowest focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all uppercase"
+                  placeholder="Ex: EXT"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-on-surface-variant uppercase mb-2">Número</label>
+                <input
+                  type="text"
+                  value={extForm.numero || ''}
+                  onChange={e => setExtForm({...extForm, numero: e.target.value})}
+                  className="w-full border border-outline-variant rounded-xl p-3 bg-surface-container-lowest focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                  placeholder="Ex: 01"
+                />
+              </div>
+            </div>
+
+            <div className="p-6 bg-surface-container-lowest border-t border-outline-variant flex justify-end gap-3">
+              <button
+                onClick={() => setIsExtModalOpen(false)}
+                className="px-6 py-2 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-container transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveExtrusora}
+                className="px-6 py-2 bg-secondary hover:bg-secondary-dark text-white rounded-xl text-sm font-bold shadow-sm transition-all"
+              >
+                Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Modal Histórico de Vendas */}
+      {isVendasModalOpen && selectedVendedor && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-surface rounded-3xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-5 border-b border-outline-variant/30 flex justify-between items-center bg-[#fffbf0]">
+              <div>
+                <h3 className="text-xl font-black text-on-surface tracking-tight flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[#ffc107] text-[28px]">sell</span>
+                  Histórico de Vendas
+                </h3>
+                <p className="text-sm text-outline font-medium mt-1">
+                  Vendedor: <span className="font-bold text-[#5c4000]">{selectedVendedor.nome}</span> {selectedVendedor.cpf && `(${selectedVendedor.cpf})`}
+                </p>
+              </div>
+              <button
+                onClick={() => setIsVendasModalOpen(false)}
+                className="w-10 h-10 rounded-full bg-surface-container-highest text-on-surface-variant hover:bg-error/10 hover:text-error flex items-center justify-center transition-colors"
+              >
+                <span className="material-symbols-outlined notranslate">close</span>
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6 bg-surface">
+              {vendasLoading ? (
+                <div className="py-12 flex flex-col items-center justify-center space-y-4">
+                  <div className="w-8 h-8 border-4 border-t-[#ffc107] border-[#ffc107]/20 rounded-full animate-spin"></div>
+                  <span className="text-sm font-bold text-outline">Buscando comissões...</span>
+                </div>
+              ) : vendasHistorico.length === 0 ? (
+                <div className="py-12 flex flex-col items-center justify-center space-y-3 text-center">
+                  <span className="material-symbols-outlined notranslate text-5xl text-outline-variant">assignment_late</span>
+                  <p className="text-sm font-bold text-outline">Nenhum pedido foi atrelado a este vendedor até o momento.</p>
+                </div>
+              ) : (
+                <div className="border border-outline-variant/30 rounded-xl overflow-hidden shadow-sm">
+                  <table className="w-full text-left text-sm whitespace-nowrap">
+                    <thead className="bg-surface-container-lowest border-b border-outline-variant/30">
+                      <tr className="text-on-surface-variant font-bold uppercase text-[10px] tracking-wider">
+                        <th className="py-3 px-4">Data</th>
+                        <th className="py-3 px-4">Pedido</th>
+                        <th className="py-3 px-4">Cliente</th>
+                        <th className="py-3 px-4 text-right">Faturamento (R$)</th>
+                        <th className="py-3 px-4 text-center">% Com.</th>
+                        <th className="py-3 px-4 text-right">Comissão (R$)</th>
+                        <th className="py-3 px-4 text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-outline-variant/30">
+                      {vendasHistorico.map((venda: any) => (
+                        <tr key={venda.id} className="hover:bg-surface-container-lowest/50">
+                          <td className="py-3 px-4 text-xs font-semibold">{new Date(venda.data_emissao).toLocaleDateString('pt-BR')}</td>
+                          <td className="py-3 px-4 text-xs font-bold text-primary">{venda.codigo}</td>
+                          <td className="py-3 px-4 text-xs truncate max-w-[150px]">{venda.nome_cliente}</td>
+                          <td className="py-3 px-4 text-xs text-right font-bold">R$ {venda.faturamento.toFixed(2)}</td>
+                          <td className="py-3 px-4 text-xs text-center font-bold text-outline">{venda.comissao_venda_percentual || 0}%</td>
+                          <td className="py-3 px-4 text-xs text-right font-black text-emerald-600">R$ {venda.comissaoValor.toFixed(2)}</td>
+                          <td className="py-3 px-4 text-center">
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${venda.status === 'CANCELADO' ? 'bg-red-100 text-red-800' : 'bg-blue-50 text-blue-800'}`}>
+                              {venda.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-surface-container-low border-t-2 border-outline-variant/40">
+                      <tr>
+                        <td colSpan={3} className="py-3 px-4 font-black text-right text-xs uppercase">TOTAL ACUMULADO:</td>
+                        <td className="py-3 px-4 font-black text-right text-xs text-primary">
+                          R$ {vendasHistorico.reduce((acc, curr) => acc + curr.faturamento, 0).toFixed(2)}
+                        </td>
+                        <td></td>
+                        <td className="py-3 px-4 font-black text-right text-xs text-emerald-600">
+                          R$ {vendasHistorico.reduce((acc, curr) => acc + curr.comissaoValor, 0).toFixed(2)}
+                        </td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
