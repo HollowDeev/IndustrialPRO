@@ -253,7 +253,7 @@ export default function Fornecedores({
             </button>
           </div>
 
-          <form onSubmit={handleCreateSupplier} className="space-y-4">
+          <form id="tour-form-fornecedor" onSubmit={handleCreateSupplier} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-primary mb-1.5 uppercase tracking-wider">Razão Social *</label>

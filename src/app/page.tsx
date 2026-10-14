@@ -851,6 +851,11 @@ export default function Home() {
         ref={tourRef}
         currentScreen={currentScreen}
         setCurrentScreen={setCurrentScreen}
+        setIsAddingNewSupplier={setIsAddingNewSupplier}
+        setTriggerAddMaterial={setTriggerAddMaterial}
+        setTriggerAddFamily={setTriggerAddFamily}
+        setTriggerAddEstoque={setTriggerAddEstoque}
+        setIsAddOrderModalOpen={setIsAddOrderModalOpen}
       />
     </div>
   );

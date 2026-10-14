@@ -421,7 +421,7 @@ export default function FamiliasSkusScreen({ triggerAddNew }: { triggerAddNew?: 
               Medidas de Produto
             </h4>
             
-            <form onSubmit={handleSaveFamilia} className="space-y-3.5 mb-6">
+            <form id="tour-form-familia" onSubmit={handleSaveFamilia} className="space-y-3.5 mb-6">
               <div>
                 <label className="block text-[10px] font-black uppercase text-[#74777f] mb-1">Nome da Medida</label>
                 <input

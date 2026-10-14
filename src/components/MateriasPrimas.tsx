@@ -438,7 +438,7 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
           
           {isAddingNew ? (
             /* ================= CREATE RAW MATERIAL FORM ================= */
-            <form onSubmit={handleCreateMaterial} className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-xs space-y-6">
+            <form id="tour-form-insumo" onSubmit={handleCreateMaterial} className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-xs space-y-6">
               <div className="flex justify-between items-center border-b border-outline-variant pb-4">
                 <div className="flex items-center gap-2 text-primary">
                   <Plus size={20} className="text-secondary" />

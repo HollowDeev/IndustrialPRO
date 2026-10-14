@@ -146,6 +146,7 @@ export default function ClientesScreen({ onGerarPedido }: ClientesScreenProps) {
           </p>
         </div>
         <button
+          id="tour-btn-novo-cliente"
           onClick={() => handleOpenModal()}
           className="bg-primary hover:bg-primary-dark text-white px-6 py-2 rounded-lg font-bold text-sm shadow-sm transition-colors flex items-center gap-2"
         >

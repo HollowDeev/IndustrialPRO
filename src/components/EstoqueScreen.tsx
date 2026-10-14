@@ -931,7 +931,7 @@ export default function EstoqueScreen({
       {/* MODAL: NOVA ENTRADA DE ESTOQUE */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-black/55 flex items-center justify-center z-[999] p-4 animate-fade-in">
-          <form onSubmit={handleAddEntradaSubmit} className="bg-white max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col rounded-2xl shadow-2xl border border-outline-variant">
+          <form id="tour-form-entrada-estoque" onSubmit={handleAddEntradaSubmit} className="bg-white max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col rounded-2xl shadow-2xl border border-outline-variant">
             <div className="flex justify-between items-center border-b border-outline-variant p-6 bg-surface-container-lowest shrink-0">
               <h3 className="text-sm font-black text-[#002046] uppercase flex items-center gap-2">
                 <span className="material-symbols-outlined notranslate text-[20px]">local_shipping</span>
