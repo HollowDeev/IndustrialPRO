@@ -51,7 +51,7 @@ export default function AssinaturaSuspensaPage() {
 
         <div className="mt-8 border-t border-[#e7e8e9] pt-4 w-full text-center">
           <p className="text-[10px] text-[#74777f] font-semibold tracking-wider uppercase">
-            Helpe Gestão Industrial © 2026
+            Kore Industrial © 2026
           </p>
         </div>
       </div>

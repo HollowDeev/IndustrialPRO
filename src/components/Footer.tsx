@@ -13,7 +13,7 @@ export default function Footer() {
       }}
     >
       <p className="text-[10px] text-[#002046] font-bold tracking-widest uppercase text-center px-4">
-        Helpe Life ERP © 2026. Licenciado para Helpe Gestão Industrial.
+        Kore Industrial ERP © 2026. Licenciado para Kore Industrial.
       </p>
 
     </footer>

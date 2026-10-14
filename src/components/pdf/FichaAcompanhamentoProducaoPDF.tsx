@@ -241,8 +241,8 @@ const FichaAcompanhamentoProducaoPDF = ({ order }: FichaProps) => {
         
         <View style={styles.footer} fixed>
           <View style={styles.footerImages}>
-            <Image src="/HelpeLife_Logotipo.png" style={styles.footerLogo} />
-            <Text style={styles.footerText}>Helpe Life ERP © 2026</Text>
+            <Image src="/kore-cor.png" style={styles.footerLogo} />
+            <Text style={styles.footerText}>Kore Industrial ERP © 2026</Text>
           </View>
           <Text style={styles.footerText} render={({ pageNumber, totalPages }) => (
             `Página ${pageNumber} de ${totalPages}`
@@ -320,8 +320,8 @@ const FichaAcompanhamentoProducaoPDF = ({ order }: FichaProps) => {
 
         <View style={styles.footer} fixed>
           <View style={styles.footerImages}>
-            <Image src="/HelpeLife_Logotipo.png" style={styles.footerLogo} />
-            <Text style={styles.footerText}>Helpe Life ERP © 2026</Text>
+            <Image src="/kore-cor.png" style={styles.footerLogo} />
+            <Text style={styles.footerText}>Kore Industrial ERP © 2026</Text>
           </View>
           <Text style={styles.footerText} render={({ pageNumber, totalPages }) => (
             `Página ${pageNumber} de ${totalPages}`

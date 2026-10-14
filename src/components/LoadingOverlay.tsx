@@ -11,8 +11,8 @@ export default function LoadingOverlay({ message }: LoadingOverlayProps) {
       <div className="relative w-64 h-20 mb-4 animate-pulse">
         {/* Logotipo Base Estático */}
         <Image
-          src="/HelpeLife_Logotipo.png"
-          alt="Carregando Base"
+          src="/kore-cor.png"
+          alt="Kore Industrial"
           fill
           className="object-contain"
           priority

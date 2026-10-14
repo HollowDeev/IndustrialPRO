@@ -79,47 +79,47 @@ export default function TopAppBar({
     switch (currentScreen) {
       case 'dashboard':
         return [
-          { name: 'HELPE', action: () => setCurrentScreen('dashboard') },
+          { name: 'KORE', action: () => setCurrentScreen('dashboard') },
           { name: 'Central', active: true }
         ];
       case 'pedidos':
         return [
-          { name: 'HELPE', action: () => setCurrentScreen('dashboard') },
+          { name: 'KORE', action: () => setCurrentScreen('dashboard') },
           { name: 'Controle de Pedidos', active: true }
         ];
       case 'pedido-detail':
         return [
-          { name: 'HELPE', action: () => setCurrentScreen('dashboard') },
+          { name: 'KORE', action: () => setCurrentScreen('dashboard') },
           { name: 'Pedidos', action: () => setCurrentScreen('pedidos') },
           { name: 'Detalhamento do Pedido', active: true }
         ];
       case 'funcionarios':
         return [
-          { name: 'HELPE', action: () => setCurrentScreen('dashboard') },
+          { name: 'KORE', action: () => setCurrentScreen('dashboard') },
           { name: 'Gestão de Funcionários', active: true }
         ];
       case 'materias-primas':
         return [
-          { name: 'HELPE', action: () => setCurrentScreen('dashboard') },
+          { name: 'KORE', action: () => setCurrentScreen('dashboard') },
           { name: 'Matérias-Primas', active: true }
         ];
       case 'fornecedores':
         return [
-          { name: 'HELPE', action: () => setCurrentScreen('dashboard') },
+          { name: 'KORE', action: () => setCurrentScreen('dashboard') },
           { name: 'Gestão de Fornecedores', active: true }
         ];
       case 'familias-skus':
         return [
-          { name: 'HELPE', action: () => setCurrentScreen('dashboard') },
+          { name: 'KORE', action: () => setCurrentScreen('dashboard') },
           { name: 'Medidas & Famílias', active: true }
         ];
       case 'bom-formulas':
         return [
-          { name: 'HELPE', action: () => setCurrentScreen('dashboard') },
+          { name: 'KORE', action: () => setCurrentScreen('dashboard') },
           { name: 'Receitas (BOM)', active: true }
         ];
       default:
-        return [{ name: 'HELPE', active: true }];
+        return [{ name: 'KORE', active: true }];
     }
   };
 

@@ -1,4 +1,4 @@
-# 🏭 Helpe - Sistema Integrado de Gestão Industrial (PCP & MRP I)
+# 🏭 Kore Industrial - Sistema Integrado de Gestão Industrial (PCP & MRP I)
 
 > Plataforma SaaS Multi-Tenant desenvolvida para o planejamento, controle e automação da gestão de materiais (MRP I) em ambientes de manufatura polimérica.
 
@@ -6,7 +6,7 @@
 
 ## 📋 Sobre o Projeto
 
-O **Helpe Gestão Industrial** atua como a Unidade Central de Processamento do escritório de produção. O sistema foi projetado para substituir rotinas descentralizadas por um banco de dados relacional robusto, orquestrando desde a entrada de demandas de vendas até a explosão de necessidades líquidas de matéria-prima (Aço e Blends Poliméricos).
+O **Kore Industrial** atua como a Unidade Central de Processamento do escritório de produção. O sistema foi projetado para substituir rotinas descentralizadas por um banco de dados relacional robusto, orquestrando desde a entrada de demandas de vendas até a explosão de necessidades líquidas de matéria-prima (Aço e Blends Poliméricos).
 
 O núcleo do sistema baseia-se em conceitos rigorosos de **Engenharia de Produção**, estabelecendo matrizes de geometria paramétrica (Famílias e SKUs) e blindando a Árvore de Estrutura de Produto (BOM - *Bill of Materials*) contra falhas operacionais.
 

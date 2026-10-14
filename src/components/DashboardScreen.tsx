@@ -330,7 +330,7 @@ export default function DashboardScreen({
       {/* Welcome Banner / Overview */}
       <div className="bg-primary-container text-on-primary-container p-6 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-outline-variant shadow-xs">
         <div>
-          <h3 className="text-xl font-bold tracking-tight">Bem-vindo ao HELPE, {userName || 'Operador'}</h3>
+          <h3 className="text-xl font-bold tracking-tight">Bem-vindo ao KORE INDUSTRIAL, {userName || 'Operador'}</h3>
           <p className="text-sm text-on-primary-container/85 mt-1 leading-relaxed">
             Planta de Coextrusão Ativa. Visualização integrada de PCP/MRP para gestão e controle de estoque de fábrica.
           </p>

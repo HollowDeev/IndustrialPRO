@@ -64,8 +64,8 @@ export default function LoginPage() {
       {/* Absolute Bottom Left Logo */}
       <div className="absolute bottom-6 left-6 z-0 pointer-events-none" style={{ width: 250, height: 110 }}>
         <Image
-          src="/HelpeLife_Logotipo.png"
-          alt="Helpe Life Logotipo"
+          src="/kore-cor.png"
+          alt="Kore Industrial Logotipo"
           fill
           className="object-contain object-left-bottom opacity-30"
           priority
@@ -76,7 +76,7 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center px-4 py-12 z-10">
         <div className="max-w-md w-full bg-white rounded-3xl border border-[#e7e8e9] p-8 shadow-xs flex flex-col items-center">
           
-          {/* Logo Helpe */}
+          {/* Logo Kore Industrial */}
           <div className="mb-8 w-full flex justify-center">
             <Logo showText={true} className="justify-center" />
           </div>

@@ -750,7 +750,7 @@ export default function FinanceiroScreen() {
             <span className="material-symbols-outlined notranslate text-secondary text-[32px]">payments</span>
             Cérebro Financeiro Industrial
           </h2>
-          <p className="text-xs text-outline">Planejamento contábil, formação de preço e fluxo de caixa da Helpe</p>
+          <p className="text-xs text-outline">Planejamento contábil, formação de preço e fluxo de caixa da Kore Industrial</p>
         </div>
 
         {/* Abas */}

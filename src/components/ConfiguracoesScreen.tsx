@@ -133,7 +133,7 @@ export default function ConfiguracoesScreen() {
       <div className="flex justify-between items-center border-b border-outline-variant pb-4">
         <div>
           <h3 className="text-base font-bold text-primary">Configurações do Sistema</h3>
-          <p className="text-xs text-outline">HELPE v1.0.0 (Módulo Core & ERP)</p>
+          <p className="text-xs text-outline">KORE INDUSTRIAL v1.0.0 (Módulo Core & ERP)</p>
         </div>
         {msg.text && (
           <span className={`text-xs px-3 py-1.5 rounded-lg font-bold border ${
