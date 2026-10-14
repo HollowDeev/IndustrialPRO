@@ -25,6 +25,53 @@ export interface Supplier {
   currency: string;
   documents: SupplierDocument[];
   history: SupplierHistoryOP[];
+  passa_triagem?: boolean;
+  extraido_rotulo?: boolean;
+  moagem_inicia_lavagem?: boolean;
+  lavagem_a_seco?: boolean;
+  possui_lavadora?: boolean;
+  possui_tanque_decantacao?: boolean;
+  possui_secadora?: boolean;
+  possui_sopro_silo_bag?: boolean;
+}
+
+export interface Funcionario {
+  id: string;
+  nome: string;
+  cargo?: string;
+  ativo?: boolean;
+  extrusora_id?: string;
+  extrusora?: Extrusora; // Para JOINs
+  vendedor?: boolean;
+  cpf?: string;
+}
+
+export interface Extrusora {
+  id: string;
+  codigo: string;
+  numero: string;
+  created_at?: string;
+  empresa_id?: string;
+}
+
+export interface EstadoTributo {
+  id: string;
+  empresa_id: string;
+  uf: string;
+  nome: string;
+  aliquota_imposto: number;
+  created_at?: string;
+}
+
+export interface ArquivoPlanejamento {
+  id: string;
+  empresa_id: string;
+  nome_arquivo: string;
+  storage_path: string;
+  tamanho_bytes: number;
+  excluido: boolean;
+  criado_em: string;
+  criado_por?: string;
 }
 
 export interface SupplierDocument {
@@ -63,12 +110,15 @@ export interface Order {
   location: string;
   emissionDate: string;
   deliveryDate: string;
-  status?: 'ATIVO' | 'FINALIZADO';
+  status?: 'ATIVO' | 'FINALIZADO' | 'AGUARDANDO_APROVACAO' | 'CANCELADO';
   totalProduced: number;
   totalVolume: number;
   efficiency: number; // e.g. 94.2
   timeEstimated: number; // e.g. 48 hours
   items: OrderLine[];
+  condicao_pagamento?: string;
+  comissao_venda_percentual?: number;
+  data_recebimento_personalizada?: string;
 }
 
 export interface DailyProductionSetup {
@@ -163,5 +213,97 @@ export interface RawMaterial {
 
   // Terceiro Bloco: Ranking de Fornecedores
   supplierRankings: RawMaterialSupplierRating[];
+
+  category?: 'POLIMERO' | 'QUIMICO' | 'EMBALAGEM/OUTROS' | 'ACO' | 'QUIMICO' | 'EMBALAGEM' | 'OUTROS' | string;
+  peso_nominal_kg_m?: number | string | null;
+  bitola_mm?: number | string | null;
 }
+
+export interface Cliente {
+  id: string;
+  razao_social: string;
+  cnpj: string;
+  telefone?: string;
+  email?: string;
+  endereco_entrega?: string;
+  uf?: string;
+  tipo_cliente?: 'REVENDA' | 'INDUSTRIALIZACAO' | 'CONSUMIDOR_FINAL' | string;
+  contribuinte_icms?: boolean;
+  status: 'Ativo' | 'Inativo';
+}
+
+export type PermissoesUsuario = {
+  dashboard?: boolean;
+  estoque?: boolean;
+  pedidos?: boolean;
+  apontamento?: boolean;
+  reprogramacao?: boolean;
+  fornecedores?: boolean;
+  funcionarios?: boolean;
+  'materias-primas'?: boolean;
+  'familias-skus'?: boolean;
+  'bom-formulas'?: boolean;
+  arquivos?: boolean;
+  configuracoes?: boolean;
+  acessos?: boolean;
+  clientes?: boolean;
+  financeiro?: boolean;
+  'formacao-preco'?: boolean;
+  [key: string]: boolean | undefined;
+};
+
+export interface NivelAcesso {
+  id: string;
+  nome_nivel: string;
+  nome?: string;
+  permissoes: PermissoesUsuario;
+}
+
+export interface CustoFixo {
+  id: string;
+  empresa_id: string;
+  descricao: string;
+  valor_mensal: number;
+  competencia_mes: string; // YYYY-MM-DD
+  created_at?: string;
+}
+
+export interface TituloFinanceiro {
+  id: string;
+  empresa_id: string;
+  tipo: 'PAGAR' | 'RECEBER';
+  descricao: string;
+  valor: number;
+  data_vencimento: string; // YYYY-MM-DD
+  data_liquidacao: string | null; // YYYY-MM-DD
+  status: 'PENDENTE' | 'PAGO' | 'ANTECIPADO' | 'CANCELADO';
+  cliente_id?: string | null;
+  fornecedor_id?: string | null;
+  pedido_id?: string | null;
+  created_at?: string;
+  clientes?: { razao_social: string };
+  fornecedores?: { nome: string };
+  pedidos?: {
+    codigo: string;
+    clientes?: { razao_social: string };
+    ordens_producao?: Array<{
+      quantidade_planejada: number;
+      skus?: {
+        comprimento_mm: number;
+        familias_produto?: {
+          nome: string;
+        };
+      };
+    }>;
+  } | null;
+}
+
+export interface PrecificacaoParametros {
+  id: string;
+  empresa_id: string;
+  familia_id: string;
+  margem_minima_saudavel: number;
+  margem_operacional_limite: number;
+}
+
 
