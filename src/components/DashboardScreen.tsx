@@ -31,22 +31,25 @@ interface DBOP {
       id: string;
       nome: string;
       area_secao_externa: number;
-      volume_aco_metro: number;
       densidade_g_cm3: number;
     };
   };
-  pedidos: {
+  pedidos?: {
     codigo: string;
-    nome_cliente: string;
+    clientes?: {
+      razao_social: string;
+    }
   };
 }
 
 interface DBInsumo {
   id: string;
   nome: string;
-  categoria: 'ACO' | 'QUIMICO' | 'EMBALAGEM' | 'OUTROS';
+  categoria: 'ACO' | 'QUIMICO' | 'POLIMERO' | 'EMBALAGEM' | 'OUTROS';
   unidade_medida: string;
   estoque_atual: number;
+  bitola_mm?: number | string | null;
+  peso_nominal_kg_m?: number | string | null;
 }
 
 interface DBBOM {
@@ -117,13 +120,12 @@ export default function DashboardScreen({
               id,
               nome,
               area_secao_externa,
-              volume_aco_metro,
               densidade_g_cm3
             )
           ),
           pedidos (
             codigo,
-            nome_cliente
+            clientes (razao_social)
           )
         `)
         .in('status', ['ABERTA', 'EM_ANDAMENTO']);
@@ -172,32 +174,48 @@ export default function DashboardScreen({
       const sku = op.skus;
       const fam = sku.familias_produto;
 
-      // Metros de aço:
-      const acoMetros = ((sku.comprimento_mm - sku.desconto_aco_mm) / 1000.0) * qtyToProduce;
-      const acoPesoKg = acoMetros * 0.395; // Ø8mm nominal weight
-
       // Volume geométrico de plástico:
-      const volAcoTotal = fam.volume_aco_metro * ((sku.comprimento_mm - sku.desconto_aco_mm) / 1000.0) * qtyToProduce;
+      // O volume de aço ocupado dentro da peça precisa considerar a quantidade de hastes se a família tiver aço
+      const familyBOMs = dbBOMs.filter(b => b.familia_id === fam.id);
+      
+      let qtdHastesAco = 1;
+      let areaSecaoAcoM2 = 0;
+      const acoBom = familyBOMs.find(b => {
+        const ins = requirements[b.insumo_id]?.insumo;
+        return ins && ins.categoria === 'ACO';
+      });
+      if (acoBom) {
+        qtdHastesAco = acoBom.quantidade_por_unidade || 1;
+        const insumoAco = requirements[acoBom.insumo_id]?.insumo;
+        if (insumoAco && insumoAco.bitola_mm) {
+          const radiusM = (Number(insumoAco.bitola_mm) / 1000.0) / 2.0;
+          areaSecaoAcoM2 = Math.PI * Math.pow(radiusM, 2);
+        }
+      }
+
+      const volAcoTotal = areaSecaoAcoM2 * ((sku.comprimento_mm - (sku.desconto_aco_mm || 70)) / 1000.0) * qtdHastesAco * qtyToProduce;
       const volPlasticoLiquido = (fam.area_secao_externa * (sku.comprimento_mm / 1000.0) * qtyToProduce) - volAcoTotal;
       const volumeM3 = volPlasticoLiquido < 0 ? 0 : volPlasticoLiquido;
       
       // Massa do blend plástico (kg):
       const massaPlasticoKg = volumeM3 * (fam.densidade_g_cm3 * 1000.0);
 
-      // Buscar BOM para esta família
-      const familyBOMs = dbBOMs.filter(b => b.familia_id === fam.id);
 
       familyBOMs.forEach(bom => {
         if (!requirements[bom.insumo_id]) return;
 
         const reqObj = requirements[bom.insumo_id];
         if (reqObj.insumo.categoria === 'ACO') {
-          reqObj.totalRequired += acoPesoKg;
-        } else if (reqObj.insumo.categoria === 'QUIMICO' && bom.percentual_blend !== null) {
-          reqObj.totalRequired += massaPlasticoKg * (bom.percentual_blend / 100.0);
-        } else {
-          // Outros (ex: dosagens nominais)
+          const acoMetrosHaste = ((sku.comprimento_mm - (sku.desconto_aco_mm || 70)) / 1000.0) * (bom.quantidade_por_unidade || 1) * qtyToProduce;
+          const pesoNominal = Number(reqObj.insumo.peso_nominal_kg_m || 0.395);
+          reqObj.totalRequired += acoMetrosHaste * pesoNominal;
+        } else if (reqObj.insumo.categoria === 'QUIMICO') {
+          reqObj.totalRequired += (massaPlasticoKg / 1000.0) * (bom.quantidade_por_unidade / 1000.0);
+        } else if (reqObj.insumo.categoria === 'POLIMERO') {
           reqObj.totalRequired += bom.quantidade_por_unidade * massaPlasticoKg;
+        } else {
+          // Embalagens, etc
+          reqObj.totalRequired += bom.quantidade_por_unidade * qtyToProduce;
         }
       });
     });
@@ -479,14 +497,14 @@ export default function DashboardScreen({
                 return (
                   <div key={op.id} className="space-y-1.5 border-b pb-3 last:border-0 last:pb-0">
                     <div className="flex justify-between items-center text-xs">
-                      <span className="font-mono font-bold text-primary">{op.pedidos?.codigo} - {op.pedidos?.nome_cliente}</span>
+                      <span className="font-mono font-bold text-primary">{op.pedidos?.codigo} - {op.pedidos?.clientes?.razao_social || 'Cliente Não Informado'}</span>
                       <span className="text-[10px] bg-surface-container text-outline px-1.5 py-0.2 rounded font-bold uppercase">
                         {op.status === 'EM_ANDAMENTO' ? 'Em Execução' : 'Pendente'}
                       </span>
                     </div>
                     
                     <div className="flex justify-between items-center text-[11px] text-outline">
-                      <span>SKU: {op.skus?.codigo}</span>
+                      <span>Item: {op.skus?.familias_produto?.nome} - {op.skus?.comprimento_mm}mm</span>
                       <span className="font-bold text-primary font-mono">{op.quantidade_produzida} / {op.quantidade_planejada} un</span>
                     </div>
 

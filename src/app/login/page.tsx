@@ -42,9 +42,9 @@ export default function LoginPage() {
       }
 
       if (data.is_super_admin) {
-        router.push('/painel-gestor-helpe')
+        window.location.href = '/painel-gestor-helpe';
       } else {
-        router.push('/')
+        window.location.href = '/';
       }
     } catch (err) {
       setErrorMsg('Ocorreu um erro ao tentar realizar o login.')

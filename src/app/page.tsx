@@ -19,15 +19,48 @@ import ConfiguracoesScreen from '../components/ConfiguracoesScreen';
 import EstoqueScreen from '../components/EstoqueScreen';
 import LoadingOverlay from '../components/LoadingOverlay';
 import Footer from '../components/Footer';
+import NewOrderModal from '../components/NewOrderModal';
+import NovoPedidoScreen from '../components/NovoPedidoScreen';
 import { createClient } from '../utils/supabase/client';
 import { useToast } from '../contexts/ToastContext';
+import { usePermissions } from '../contexts/PermissionsContext';
+import ControleAcessos from '../components/ControleAcessos';
+import ClientesScreen from '../components/ClientesScreen';
+import ArquivosScreen from '../components/ArquivosScreen';
+import FinanceiroScreen from '../components/FinanceiroScreen';
+import FormacaoPrecoScreen, { SimulatedOrderItem } from '../components/FormacaoPrecoScreen';
+
+function parseDbCategories(categoriaVal: any): string[] {
+  let rawList: string[] = [];
+  if (Array.isArray(categoriaVal)) {
+    const flatten = (arr: any[]): any[] => {
+      return arr.reduce((acc, val) => acc.concat(Array.isArray(val) ? flatten(val) : val), []);
+    };
+    rawList = flatten(categoriaVal).map(v => String(v));
+  } else if (typeof categoriaVal === 'string') {
+    try {
+      const parsed = JSON.parse(categoriaVal);
+      if (Array.isArray(parsed)) {
+        rawList = parsed.map(v => String(v));
+      } else {
+        rawList = String(parsed).split(',').map(s => s.trim());
+      }
+    } catch {
+      rawList = categoriaVal.split(',').map(s => s.trim());
+    }
+  }
+  return rawList
+    .map(c => c.trim().toUpperCase())
+    .filter(c => ['ACO', 'POLIMERO', 'QUIMICO'].includes(c));
+}
 
 export default function Home() {
   const router = useRouter();
   const supabase = createClient();
   
   const { addToast } = useToast();
-  // Screens: 'dashboard' | 'estoque' | 'pedidos' | 'pedido-detail' | 'apontamento' | 'reprogramacao' | 'fornecedores' | 'familias-skus' | 'bom-formulas'
+  const { canAccess, loading: isPermissionsLoading, permissions } = usePermissions();
+  // Screens: 'dashboard' | 'estoque' | 'pedidos' | 'pedido-detail' | 'apontamento' | 'reprogramacao' | 'fornecedores' | 'familias-skus' | 'bom-formulas' | 'acessos'
   const [currentScreen, setCurrentScreen] = useState<string>('dashboard');
   
   // App States
@@ -39,7 +72,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [globalSearch, setGlobalSearch] = useState('');
   const [lowStockCount, setLowStockCount] = useState(0);
-  const [userProfile, setUserProfile] = useState<{ nome: string; cargo: string } | null>(null);
+  const [userProfile, setUserProfile] = useState<{ id?: string; nome: string; cargo: string; empresa_id?: string } | null>(null);
   const [triggerAddEmployee, setTriggerAddEmployee] = useState(0);
   const [triggerAddMaterial, setTriggerAddMaterial] = useState(0);
   const [triggerAddFamily, setTriggerAddFamily] = useState(0);
@@ -47,14 +80,12 @@ export default function Home() {
   
   // States para Modal de Novo Pedido
   const [isAddOrderModalOpen, setIsAddOrderModalOpen] = useState(false);
+  const [preSelectedClientId, setPreSelectedClientId] = useState<string | undefined>(undefined);
   const [newOrderCode, setNewOrderCode] = useState('');
-  const [newOrderClient, setNewOrderClient] = useState('');
-  const [newOrderLocation, setNewOrderLocation] = useState('');
-  const [newOrderDeliveryDate, setNewOrderDeliveryDate] = useState('');
   const [activeOrdersTab, setActiveOrdersTab] = useState<'ATIVOS' | 'FINALIZADOS'>('ATIVOS');
-  const [newOrderSKUId, setNewOrderSKUId] = useState('');
-  const [newOrderQty, setNewOrderQty] = useState('1000');
   const [dbSKUs, setDbSKUs] = useState<{ id: string; codigo: string; comprimento_mm: number }[]>([]);
+  const [preSelectedItems, setPreSelectedItems] = useState<SimulatedOrderItem[] | undefined>(undefined);
+  const [calculatorInitialItems, setCalculatorInitialItems] = useState<SimulatedOrderItem[]>([]);
 
   // Carregar dados principais do banco de dados (Supabase)
   const fetchData = async () => {
@@ -87,9 +118,10 @@ export default function Home() {
       }
 
       if (profile) {
-        setUserProfile(profile);
+        setUserProfile({ ...profile, id: user.id });
       } else {
         setUserProfile({
+          id: user.id,
           nome: user.user_metadata?.nome || 'Administrador',
           cargo: user.user_metadata?.is_super_admin ? 'Super Admin' : 'Gestor SaaS'
         });
@@ -98,7 +130,7 @@ export default function Home() {
       // A) Carregar Pedidos
       const { data: dbPedidos } = await supabase
         .from('pedidos')
-        .select('*, ordens_producao(*, skus(*, familias_produto(*)))')
+        .select('*, clientes(razao_social), ordens_producao(*, skus(*, familias_produto(*)))')
         .eq('empresa_id', empresaId)
         .order('created_at', { ascending: false });
 
@@ -106,7 +138,7 @@ export default function Home() {
         const items = (ped.ordens_producao || []).map((op: any, index: number) => ({
           itemNum: (index + 1).toString().padStart(2, '0'),
           product: op.skus?.familias_produto?.nome || 'Desconhecido',
-          measure: op.skus?.codigo || `${op.skus?.comprimento_mm}mm`,
+          measure: op.skus?.comprimento_mm ? `${op.skus?.comprimento_mm}mm` : 'Medida',
           totalQtd: op.quantidade_planejada,
           produced: op.quantidade_produzida || 0,
           tempoPeca: 1.2,
@@ -120,7 +152,8 @@ export default function Home() {
 
         return {
           id: ped.codigo,
-          clientName: ped.nome_cliente,
+          clientId: ped.cliente_id,
+          clientName: ped.clientes?.razao_social || 'Cliente Não Informado',
           location: ped.localizacao || 'Planta Principal',
           emissionDate: new Date(ped.data_emissao).toLocaleDateString('pt-BR'),
           deliveryDate: ped.data_entrega ? new Date(ped.data_entrega).toISOString().split('T')[0] : '',
@@ -141,7 +174,7 @@ export default function Home() {
       // B) Carregar Fornecedores e seu histórico de entradas
       const { data: dbSuppliers } = await supabase
         .from('fornecedores')
-        .select('*, entradas_estoque(*, insumos(nome))')
+        .select('*, entradas_estoque!entradas_estoque_fornecedor_id_fkey(*, insumos(nome))')
         .eq('empresa_id', empresaId)
         .order('nome');
 
@@ -160,19 +193,28 @@ export default function Home() {
           name: sup.nome,
           cnpj: sup.cnpj || '',
           IE: sup.ie || 'Isento',
-          categories: [sup.categoria || 'Matéria-Prima'],
+          categories: parseDbCategories(sup.categoria),
           rating: sup.rating || 90,
           status: sup.status || 'Em Homologação',
           contact: sup.contato_nome || '',
           contactEmail: sup.contato_email || sup.email || '',
           lastDelivery: sup.last_delivery || 'Recém Cadastrado',
           address: sup.endereco || '',
-          limit: Number(sup.limite_financeiro) || 250000,
           logo: sup.logo,
+          limit: Number(sup.limite_financeiro) || 250000,
           auditDate: sup.audit_date || new Date(sup.created_at).toLocaleDateString('pt-BR'),
           paymentTerm: sup.payment_term || '30 Dias',
           currency: sup.currency || 'BRL',
           documents: sup.documents || [],
+          possui_linha_lavagem: undefined, // Removed
+          passa_triagem: sup.passa_triagem || false,
+          extraido_rotulo: sup.extraido_rotulo || false,
+          moagem_inicia_lavagem: sup.moagem_inicia_lavagem || false,
+          lavagem_a_seco: sup.lavagem_a_seco || false,
+          possui_lavadora: sup.possui_lavadora || false,
+          possui_tanque_decantacao: sup.possui_tanque_decantacao || false,
+          possui_secadora: sup.possui_secadora || false,
+          possui_sopro_silo_bag: sup.possui_sopro_silo_bag || false,
           history: history
         };
       });
@@ -218,6 +260,7 @@ export default function Home() {
         .from('skus')
         .select('id, codigo, comprimento_mm')
         .eq('empresa_id', empresaId)
+        .is('deleted_at', null)
         .order('codigo');
       if (skusData) {
         setDbSKUs(skusData);
@@ -229,6 +272,64 @@ export default function Home() {
       setLoading(false);
     }
   };
+
+  // RBAC Redirect Logic
+  useEffect(() => {
+    if (loading || isPermissionsLoading) return;
+
+    const checkAccess = () => {
+      // Map currentScreen to its base permission key
+      let requiredPermission: keyof import('../types').PermissoesUsuario | null = null;
+      
+      switch(currentScreen) {
+        case 'dashboard': requiredPermission = 'dashboard'; break;
+        case 'estoque': requiredPermission = 'estoque'; break;
+        case 'pedidos': 
+        case 'pedido-detail': 
+        case 'novo-pedido': requiredPermission = 'pedidos'; break;
+        case 'apontamento': requiredPermission = 'apontamento'; break;
+        case 'reprogramacao': requiredPermission = 'reprogramacao'; break;
+        case 'fornecedores':
+        case 'fornecedor-cadastro':
+        case 'fornecedor-detail': requiredPermission = 'fornecedores'; break;
+        case 'funcionarios': requiredPermission = 'funcionarios'; break;
+        case 'materias-primas': requiredPermission = 'materias-primas'; break;
+        case 'familias-skus': requiredPermission = 'familias-skus'; break;
+        case 'bom-formulas': requiredPermission = 'bom-formulas'; break;
+        case 'arquivos': requiredPermission = 'arquivos'; break;
+        case 'configuracoes': requiredPermission = 'configuracoes'; break;
+        case 'acessos': requiredPermission = 'acessos'; break;
+        case 'clientes': requiredPermission = 'clientes'; break;
+        case 'financeiro': requiredPermission = 'financeiro'; break;
+        case 'formacao-preco': requiredPermission = 'formacao-preco'; break;
+        case 'sem-acesso': return; // Skip verification for the fallback screen
+        default: requiredPermission = null; break;
+      }
+
+      if (requiredPermission && !canAccess(requiredPermission)) {
+        addToast('Acesso Negado: Você não tem permissão para acessar esta tela.', 'error');
+        
+        // Find the first screen they CAN access to prevent loop
+        const availableScreens: Array<keyof import('../types').PermissoesUsuario> = [
+          'dashboard', 'estoque', 'pedidos', 'apontamento', 'reprogramacao', 
+          'fornecedores', 'funcionarios', 'materias-primas', 'familias-skus',
+          'bom-formulas', 'arquivos', 'configuracoes', 'acessos', 'clientes', 
+          'financeiro', 'formacao-preco', 'novo-pedido'
+        ];
+        
+        const firstAvailable = availableScreens.find(screen => canAccess(screen));
+        
+        if (firstAvailable) {
+          setCurrentScreen(firstAvailable as string);
+        } else {
+          // Fallback if absolutely no screen is accessible
+          setCurrentScreen('sem-acesso');
+        }
+      }
+    };
+
+    checkAccess();
+  }, [currentScreen, permissions, isPermissionsLoading, loading]);
 
   useEffect(() => {
     fetchData();
@@ -270,65 +371,16 @@ export default function Home() {
   };
 
   const handleAddOrder = () => {
-    const newCode = `PED-2026-${(orders.length + 1).toString().padStart(3, '0')}`;
-    setNewOrderCode(newCode);
-    setNewOrderClient('');
-    setNewOrderLocation('');
-    setNewOrderDeliveryDate('');
-    if (dbSKUs.length > 0) {
-      setNewOrderSKUId(dbSKUs[0].id);
-    } else {
-      setNewOrderSKUId('');
-    }
-    setNewOrderQty('1000');
-    setIsAddOrderModalOpen(true);
+    setCurrentScreen('novo-pedido');
   };
 
-  const handleCreateOrderSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newOrderCode || !newOrderClient || !newOrderSKUId) {
-        addToast('Por favor, preencha os campos obrigatórios.', 'warning');
-      return;
-    }
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data: profile } = await supabase.from('usuarios').select('empresa_id').eq('id', user.id).single();
-    const empresaId = profile?.empresa_id;
-    if (!empresaId) return;
-
-    const { data: pedRow, error } = await supabase
-      .from('pedidos')
-      .insert({
-        empresa_id: empresaId,
-        codigo: newOrderCode,
-        nome_cliente: newOrderClient,
-        localizacao: newOrderLocation || 'São Paulo - SP',
-        data_entrega: newOrderDeliveryDate || null
-      })
-      .select()
-      .single();
-
-    if (error) {
-        addToast(`Erro ao criar pedido: ${error.message}`, 'error');
-      return;
-    }
-
-    const qty = parseInt(newOrderQty) || 1000;
-    await supabase.from('ordens_producao').insert({
-      empresa_id: empresaId,
-      pedido_id: pedRow.id,
-      sku_id: newOrderSKUId,
-      quantidade_planejada: qty,
-      status: 'ABERTA'
-    });
-
-    setIsAddOrderModalOpen(false);
+  const handleOrderCreatedSuccess = async (createdOrderCode: string) => {
     await fetchData();
-    setSelectedOrderId(newOrderCode);
-    setCurrentScreen('pedido-detail');
+    setCurrentScreen('pedidos');
+    addToast(`Pedido ${createdOrderCode} criado e enviado para análise financeira.`, 'success');
   };
+
+
 
   const handleFinishOrder = async (orderId: string) => {
     const { error } = await supabase.from('pedidos').update({ status: 'FINALIZADO' }).eq('codigo', orderId);
@@ -392,6 +444,14 @@ export default function Home() {
         audit_date: newSupplier.auditDate,
         payment_term: newSupplier.paymentTerm,
         currency: newSupplier.currency,
+        passa_triagem: newSupplier.passa_triagem,
+        extraido_rotulo: newSupplier.extraido_rotulo,
+        moagem_inicia_lavagem: newSupplier.moagem_inicia_lavagem,
+        lavagem_a_seco: newSupplier.lavagem_a_seco,
+        possui_lavadora: newSupplier.possui_lavadora,
+        possui_tanque_decantacao: newSupplier.possui_tanque_decantacao,
+        possui_secadora: newSupplier.possui_secadora,
+        possui_sopro_silo_bag: newSupplier.possui_sopro_silo_bag,
         documents: newSupplier.documents,
         history: newSupplier.history
       });
@@ -404,7 +464,6 @@ export default function Home() {
   };
 
   const handleUpdateSupplier = async (updatedSupplier: Supplier) => {
-    const categoryString = updatedSupplier.categories.length > 0 ? updatedSupplier.categories[0] : 'Matéria-Prima';
 
     const { error } = await supabase
       .from('fornecedores')
@@ -412,7 +471,7 @@ export default function Home() {
         nome: updatedSupplier.name,
         cnpj: updatedSupplier.cnpj,
         ie: updatedSupplier.IE,
-        categoria: categoryString,
+        categoria: updatedSupplier.categories,
         contato_nome: updatedSupplier.contact,
         contato_email: updatedSupplier.contactEmail,
         endereco: updatedSupplier.address,
@@ -423,6 +482,14 @@ export default function Home() {
         audit_date: updatedSupplier.auditDate,
         payment_term: updatedSupplier.paymentTerm,
         currency: updatedSupplier.currency,
+        passa_triagem: updatedSupplier.passa_triagem,
+        extraido_rotulo: updatedSupplier.extraido_rotulo,
+        moagem_inicia_lavagem: updatedSupplier.moagem_inicia_lavagem,
+        lavagem_a_seco: updatedSupplier.lavagem_a_seco,
+        possui_lavadora: updatedSupplier.possui_lavadora,
+        possui_tanque_decantacao: updatedSupplier.possui_tanque_decantacao,
+        possui_secadora: updatedSupplier.possui_secadora,
+        possui_sopro_silo_bag: updatedSupplier.possui_sopro_silo_bag,
         documents: updatedSupplier.documents,
         history: updatedSupplier.history
       })
@@ -488,6 +555,12 @@ export default function Home() {
     }, 1200);
   };
 
+  const handleGerarPedidoCliente = (clienteId: string, clienteNome: string) => {
+    setPreSelectedClientId(clienteId);
+    setCurrentScreen('dashboard');
+    setIsAddOrderModalOpen(true);
+  };
+
   const renderActiveScreen = () => {
     switch (currentScreen) {
       case 'dashboard':
@@ -508,7 +581,13 @@ export default function Home() {
         );
 
       case 'estoque':
-        return <EstoqueScreen triggerAddNew={triggerAddEstoque} />;
+        return <EstoqueScreen 
+          triggerAddNew={triggerAddEstoque} 
+          onGoToSupplier={(id, name) => {
+            setGlobalSearch(name);
+            setCurrentScreen('fornecedores');
+          }}
+        />;
 
       case 'pedidos':
         return (
@@ -542,7 +621,7 @@ export default function Home() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {orders.filter(o => activeOrdersTab === 'ATIVOS' ? o.status === 'ATIVO' : o.status === 'FINALIZADO').map(order => (
+                {orders.filter(o => activeOrdersTab === 'ATIVOS' ? (o.status === 'ATIVO' || o.status === 'AGUARDANDO_APROVACAO') : o.status === 'FINALIZADO').map(order => (
                   <div
                     key={order.id}
                     onClick={() => {
@@ -553,7 +632,22 @@ export default function Home() {
                   >
                     <div>
                       <div className="flex justify-between items-center mb-2">
-                        <span className="font-mono text-sm font-black text-primary">{order.id}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm font-black text-primary">{order.id}</span>
+                          {order.status === 'AGUARDANDO_APROVACAO' ? (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-yellow-50 border border-yellow-300 text-yellow-800 uppercase animate-pulse">
+                              Aguardando Aprovação
+                            </span>
+                          ) : order.status === 'ATIVO' ? (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-green-50 border border-green-300 text-green-800 uppercase">
+                              Em Produção
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-gray-50 border border-gray-300 text-gray-800 uppercase">
+                              Finalizado
+                            </span>
+                          )}
+                        </div>
                         {order.deliveryDate ? (
                           <span className="px-2 py-0.5 rounded-sm text-[10px] font-bold bg-secondary-container text-on-secondary-container flex items-center gap-1">
                             <span className="material-symbols-outlined text-[10px]">calendar_today</span>
@@ -617,7 +711,7 @@ export default function Home() {
         );
 
       case 'funcionarios':
-        return <Funcionarios externalSearchQuery={globalSearch} triggerAddNew={triggerAddEmployee} />;
+        return <Funcionarios triggerAddNew={triggerAddEmployee} />;
 
       case 'materias-primas':
         return <MateriasPrimas suppliers={suppliers} triggerAddNew={triggerAddMaterial} />;
@@ -628,8 +722,61 @@ export default function Home() {
       case 'bom-formulas':
         return <BOMScreen />;
 
+      case 'arquivos':
+        return <ArquivosScreen />;
+
       case 'configuracoes':
         return <ConfiguracoesScreen />;
+
+      case 'acessos':
+        return <ControleAcessos />;
+
+      case 'clientes':
+        return <ClientesScreen onGerarPedido={handleGerarPedidoCliente} />;
+
+      case 'financeiro':
+        return <FinanceiroScreen />;
+
+      case 'novo-pedido':
+        return (
+          <NovoPedidoScreen
+            onAbrirCalculadora={(items) => {
+              setCalculatorInitialItems(items);
+              setCurrentScreen('formacao-preco');
+            }}
+            onFaturar={async (items) => {
+              const { count } = await supabase.from('pedidos').select('*', { count: 'exact', head: true });
+              const nextCode = `PED-2026-${String((count || 0) + 1).padStart(3, '0')}`;
+              setNewOrderCode(nextCode);
+              setPreSelectedItems(items);
+              setIsAddOrderModalOpen(true);
+            }}
+          />
+        );
+
+      case 'formacao-preco':
+        return (
+          <FormacaoPrecoScreen
+            initialItems={calculatorInitialItems}
+            onAbrirPedidoSimulado={async (items) => {
+              const { count } = await supabase.from('pedidos').select('*', { count: 'exact', head: true });
+              const nextCode = `PED-2026-${String((count || 0) + 1).padStart(3, '0')}`;
+              setNewOrderCode(nextCode);
+              setPreSelectedItems(items);
+              setIsAddOrderModalOpen(true);
+            }}
+            onBack={() => setCurrentScreen('novo-pedido')}
+          />
+        );
+
+      case 'sem-acesso':
+        return (
+          <div className="p-12 flex flex-col items-center justify-center text-center space-y-4 h-[60vh]">
+            <span className="material-symbols-outlined notranslate text-[80px] text-red-500 opacity-80">gpp_bad</span>
+            <h2 className="text-3xl font-black text-on-surface">Acesso Negado</h2>
+            <p className="text-outline text-lg max-w-md">Sua conta não possui permissões configuradas para acessar os módulos do sistema. Por favor, entre em contato com seu gestor de TI.</p>
+          </div>
+        );
 
       default:
         return (
@@ -660,6 +807,7 @@ export default function Home() {
           setCurrentScreen('fornecedores');
         }}
         onActionButtonClick={handleActionButtonClick}
+        userId={userProfile?.id}
       />
 
       {/* Main workspace box */}
@@ -681,124 +829,19 @@ export default function Home() {
       </main>
 
       {/* ================= MODAL DE CADASTRO DE NOVO PEDIDO ================= */}
-      {isAddOrderModalOpen && (
-        <div className="fixed inset-0 bg-black/55 flex items-center justify-center z-[999] p-4 animate-fade-in">
-          <form onSubmit={handleCreateOrderSubmit} className="bg-white max-w-lg w-full rounded-2xl shadow-2xl p-6 border border-outline-variant space-y-4">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-sm font-black text-[#002046] uppercase flex items-center gap-2">
-                <span className="material-symbols-outlined notranslate text-[20px]">add_shopping_cart</span>
-                Cadastrar Novo Pedido Geral
-              </h3>
-              <button 
-                type="button" 
-                onClick={() => setIsAddOrderModalOpen(false)}
-                className="text-[#74777f] hover:text-primary transition-colors cursor-pointer"
-              >
-                <span className="material-symbols-outlined notranslate">close</span>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-              <div>
-                <label className="block text-[10px] font-bold text-[#74777f] uppercase mb-1">Código do Pedido</label>
-                <input
-                  type="text"
-                  required
-                  value={newOrderCode}
-                  onChange={(e) => setNewOrderCode(e.target.value.toUpperCase())}
-                  className="w-full bg-[#f4f3f9] border border-outline-variant rounded-lg p-2.5 font-mono font-bold text-primary focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-[#74777f] uppercase mb-1">Nome do Cliente</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Rodoplex Distribuidora"
-                  value={newOrderClient}
-                  onChange={(e) => setNewOrderClient(e.target.value)}
-                  className="w-full bg-[#f4f3f9] border border-outline-variant rounded-lg p-2.5 font-bold text-primary focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-              <div>
-                <label className="block text-[10px] font-bold text-[#74777f] uppercase mb-1">Localização (Cidade - UF)</label>
-                <input
-                  type="text"
-                  placeholder="Ex: São Paulo - SP"
-                  value={newOrderLocation}
-                  onChange={(e) => setNewOrderLocation(e.target.value)}
-                  className="w-full bg-[#f4f3f9] border border-outline-variant rounded-lg p-2.5 font-semibold text-primary focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-outline font-bold mb-1">Data de Entrega Prevista</label>
-                <input 
-                  type="date"
-                  value={newOrderDeliveryDate}
-                  onChange={(e) => setNewOrderDeliveryDate(e.target.value)}
-                  className="w-full bg-[#f4f3f9] border border-outline-variant rounded-lg p-2.5 font-bold text-primary focus:border-secondary outline-hidden" 
-                />
-              </div>
-            </div>
-
-            <div className="border-t pt-4 border-outline-variant/40 space-y-4">
-              <h4 className="text-[10px] font-black text-secondary uppercase tracking-wider">Item Inicial da OP</h4>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                <div>
-                  <label className="block text-[10px] font-bold text-[#74777f] uppercase mb-1">SKU do Produto</label>
-                  <select
-                    required
-                    value={newOrderSKUId}
-                    onChange={(e) => setNewOrderSKUId(e.target.value)}
-                    className="w-full bg-[#f4f3f9] border border-outline-variant rounded-lg p-2.5 font-semibold text-primary focus:outline-none"
-                  >
-                    <option value="" disabled>Selecione o SKU...</option>
-                    {dbSKUs.map(sku => (
-                      <option key={sku.id} value={sku.id}>
-                        {sku.codigo}{sku.comprimento_mm ? ` (${sku.comprimento_mm}mm)` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-[#74777f] uppercase mb-1">Quantidade Planejada (PEÇAS)</label>
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    value={newOrderQty}
-                    onChange={(e) => setNewOrderQty(e.target.value)}
-                    className="w-full bg-[#f4f3f9] border border-outline-variant rounded-lg p-2.5 font-bold text-primary focus:outline-none"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-3 border-t border-outline-variant">
-              <button
-                type="button"
-                onClick={() => setIsAddOrderModalOpen(false)}
-                className="bg-[#f4f3f9] hover:bg-[#e4e3e9] text-primary font-bold px-4 py-2.5 rounded-lg text-xs cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="bg-[#002046] hover:bg-[#1b365d] text-white font-bold px-4 py-2.5 rounded-lg text-xs cursor-pointer"
-              >
-                Gravar Pedido Geral
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      <NewOrderModal
+        isOpen={isAddOrderModalOpen}
+        onClose={() => {
+          setIsAddOrderModalOpen(false);
+          setPreSelectedClientId(undefined);
+          setPreSelectedItems(undefined);
+        }}
+        onSuccess={handleOrderCreatedSuccess}
+        empresaId={userProfile?.empresa_id || ''}
+        initialCode={newOrderCode}
+        preSelectedClientId={preSelectedClientId}
+        preSelectedItems={preSelectedItems}
+      />
     </div>
   );
 }

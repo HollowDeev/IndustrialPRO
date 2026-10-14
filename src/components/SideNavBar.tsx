@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import Logo from './Logo';
 import { useShortcut } from '../hooks/useShortcut';
+import { usePermissions } from '../contexts/PermissionsContext';
 
 interface SideNavBarProps {
   currentScreen: string;
   setCurrentScreen: (screen: string) => void;
   onNewOrder: () => void;
-  onNewSupplier: () => void;
-  onActionButtonClick?: (screen: string) => void;
+  onNewSupplier?: () => void;
+  onActionButtonClick?: (action: string) => void;
+  userId?: string;
 }
 
 export default function SideNavBar({
@@ -15,18 +17,21 @@ export default function SideNavBar({
   setCurrentScreen,
   onNewOrder,
   onNewSupplier,
-  onActionButtonClick
+  onActionButtonClick,
+  userId
 }: SideNavBarProps) {
   const [cadastrosOpen, setCadastrosOpen] = useState(true);
   const [producaoOpen, setProducaoOpen] = useState(true);
+  const [financeiroOpen, setFinanceiroOpen] = useState(true);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { canAccess } = usePermissions();
 
   const handleAction = () => {
     if (onActionButtonClick) {
       onActionButtonClick(currentScreen);
     } else {
       if (currentScreen.startsWith('fornecedor')) {
-        onNewSupplier();
+        onNewSupplier?.();
       } else {
         onNewOrder();
       }
@@ -105,8 +110,8 @@ export default function SideNavBar({
       <nav className={`flex-1 ${isCollapsed ? 'px-2' : 'px-4'} py-4 space-y-4 overflow-y-auto`}>
         {/* Dashboard */}
         <div className="space-y-1">
-          {renderNavItem('dashboard', 'dashboard', 'Dashboard')}
-          {renderNavItem('estoque', 'warehouse', 'Almoxarifado')}
+          {canAccess('dashboard') && renderNavItem('dashboard', 'dashboard', 'Central')}
+          {canAccess('estoque') && renderNavItem('estoque', 'warehouse', 'Almoxarifado')}
         </div>
 
         {/* Cadastros Parent Group */}
@@ -133,11 +138,12 @@ export default function SideNavBar({
 
           {(cadastrosOpen || isCollapsed) && (
             <div className={`${isCollapsed ? 'space-y-1' : 'pl-2 border-l border-outline-variant/60 ml-4 space-y-1'}`}>
-              {renderSubItem('familias-skus', 'category', 'Famílias & SKUs')}
-              {renderSubItem('bom-formulas', 'science', 'Fórmulas (BOM)')}
-              {renderSubItem('funcionarios', 'badge', 'Funcionários')}
-              {renderSubItem('fornecedores', 'factory', 'Fornecedores', ['fornecedores', 'fornecedor-cadastro', 'fornecedor-detail'], currentScreen === 'fornecedores')}
-              {renderSubItem('materias-primas', 'layers', 'Matérias Primas', 'materias-primas', currentScreen === 'materias-primas')}
+              {canAccess('familias-skus') && renderSubItem('familias-skus', 'category', 'Medidas & Famílias')}
+              {canAccess('bom-formulas') && renderSubItem('bom-formulas', 'science', 'Receitas (BOM)')}
+              {canAccess('clientes') && renderSubItem('clientes', 'groups', 'Clientes', 'clientes')}
+              {canAccess('funcionarios') && renderSubItem('funcionarios', 'badge', 'Funcionários/Extrusoras')}
+              {canAccess('fornecedores') && renderSubItem('fornecedores', 'factory', 'Fornecedores', ['fornecedores', 'fornecedor-cadastro', 'fornecedor-detail'], currentScreen === 'fornecedores')}
+              {canAccess('materias-primas') && renderSubItem('materias-primas', 'layers', 'Matérias Primas', 'materias-primas', currentScreen === 'materias-primas')}
             </div>
           )}
         </div>
@@ -152,25 +158,57 @@ export default function SideNavBar({
             >
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined notranslate text-[18px]">precision_manufacturing</span>
-                <span>Produção</span>
+                <span>Planejamento</span>
               </div>
               <span className="material-symbols-outlined notranslate text-xs">
                 {producaoOpen ? 'expand_less' : 'expand_more'}
               </span>
             </button>
           ) : (
-            <div className="w-full flex justify-center py-2 text-outline" title="Produção">
+            <div className="w-full flex justify-center py-2 text-outline" title="Planejamento">
               <span className="material-symbols-outlined notranslate text-[18px]">precision_manufacturing</span>
             </div>
           )}
 
           {(producaoOpen || isCollapsed) && (
             <div className={`${isCollapsed ? 'space-y-1' : 'pl-2 border-l border-outline-variant/60 ml-4 space-y-1'}`}>
-              {renderSubItem('pedidos', 'production_quantity_limits', 'Pedidos', ['pedidos', 'pedido-detail'])}
-              {renderSubItem('apontamento', 'edit_note', 'Apontamento Diário')}
+              {canAccess('pedidos') && renderSubItem('pedidos', 'production_quantity_limits', 'Pedidos', ['pedidos', 'pedido-detail'])}
+              {canAccess('apontamento') && renderSubItem('apontamento', 'edit_note', 'Apontamentos')}
+              {canAccess('arquivos') && renderSubItem('arquivos', 'folder_open', 'Arquivos')}
             </div>
           )}
         </div>
+
+        {/* Financeiro Parent Group */}
+        {canAccess('financeiro') && (
+          <div className="space-y-1">
+            {!isCollapsed ? (
+              <button
+                type="button"
+                onClick={() => setFinanceiroOpen(!financeiroOpen)}
+                className="w-full flex items-center justify-between px-4 py-2 text-xs font-black text-outline uppercase tracking-wider hover:bg-surface-container-high rounded-lg transition-all duration-200 text-left"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined notranslate text-[18px]">account_balance</span>
+                  <span>Financeiro</span>
+                </div>
+                <span className="material-symbols-outlined notranslate text-xs">
+                  {financeiroOpen ? 'expand_less' : 'expand_more'}
+                </span>
+              </button>
+            ) : (
+              <div className="w-full flex justify-center py-2 text-outline" title="Financeiro">
+                <span className="material-symbols-outlined notranslate text-[18px]">account_balance</span>
+              </div>
+            )}
+
+            {(financeiroOpen || isCollapsed) && (
+              <div className={`${isCollapsed ? 'space-y-1' : 'pl-2 border-l border-outline-variant/60 ml-4 space-y-1'}`}>
+                {renderSubItem('financeiro', 'monetization_on', 'Painel Financeiro', 'financeiro')}
+              </div>
+            )}
+          </div>
+        )}
       </nav>
 
       {/* Footer / Persistent Controls */}
@@ -192,7 +230,7 @@ export default function SideNavBar({
             case 'materias-primas':
               return { text: 'NOVO INSUMO', icon: 'add_box' };
             case 'familias-skus':
-              return { text: 'NOVA FAMÍLIA', icon: 'category' };
+              return { text: 'NOVA MEDIDA', icon: 'category' };
             default:
               return null;
           }

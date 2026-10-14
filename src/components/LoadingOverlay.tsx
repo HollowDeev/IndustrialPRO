@@ -8,10 +8,10 @@ interface LoadingOverlayProps {
 export default function LoadingOverlay({ message }: LoadingOverlayProps) {
   return (
     <div className="flex flex-col items-center justify-center p-8 w-full h-full min-h-[300px] flex-1">
-      <div className="relative w-80 h-80 mb-4">
+      <div className="relative w-64 h-20 mb-4 animate-pulse">
         {/* Logotipo Base Estático */}
         <Image
-          src="/logotipo-carregamento.png"
+          src="/HelpeLife_Logotipo.png"
           alt="Carregando Base"
           fill
           className="object-contain"

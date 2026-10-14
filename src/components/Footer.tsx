@@ -13,13 +13,8 @@ export default function Footer() {
       }}
     >
       <p className="text-[10px] text-[#002046] font-bold tracking-widest uppercase text-center px-4">
-        Helpe Life ERP © 2026. Licenciado para Helpe Gestão Industrial. Tecnologia por Agência Karamello
+        Helpe Life ERP © 2026. Licenciado para Helpe Gestão Industrial.
       </p>
-      <div className="flex items-center gap-6">
-        <div className="relative w-32 h-8">
-          <Image src="/assinatura.png" alt="Agência Karamello" fill className="object-contain" />
-        </div>
-      </div>
 
     </footer>
   );

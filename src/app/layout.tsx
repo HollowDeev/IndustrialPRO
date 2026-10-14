@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ToastProvider } from "@/contexts/ToastContext";
+import { PermissionsProvider } from "@/contexts/PermissionsContext";
 import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 
@@ -22,7 +23,9 @@ export default function RootLayout({
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0&display=block" />
       </head>
       <body className="min-h-full flex flex-col">
-        <ToastProvider>{children}</ToastProvider>
+        <PermissionsProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </PermissionsProvider>
         <Analytics />
         <SpeedInsights />
       </body>

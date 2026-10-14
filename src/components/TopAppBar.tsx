@@ -80,7 +80,7 @@ export default function TopAppBar({
       case 'dashboard':
         return [
           { name: 'HELPE', action: () => setCurrentScreen('dashboard') },
-          { name: 'Dashboard de Produção', active: true }
+          { name: 'Central', active: true }
         ];
       case 'pedidos':
         return [
@@ -111,12 +111,12 @@ export default function TopAppBar({
       case 'familias-skus':
         return [
           { name: 'HELPE', action: () => setCurrentScreen('dashboard') },
-          { name: 'Famílias & SKUs', active: true }
+          { name: 'Medidas & Famílias', active: true }
         ];
       case 'bom-formulas':
         return [
           { name: 'HELPE', action: () => setCurrentScreen('dashboard') },
-          { name: 'Fórmulas (BOM)', active: true }
+          { name: 'Receitas (BOM)', active: true }
         ];
       default:
         return [{ name: 'HELPE', active: true }];
@@ -126,7 +126,7 @@ export default function TopAppBar({
   const getTitle = () => {
     switch (currentScreen) {
       case 'dashboard':
-        return 'Dashboard Geral e Ficha de Turno';
+        return 'Central de Produção e Ficha de Turno';
       case 'pedidos':
         return 'Gestão e Planejamento de Pedidos';
       case 'pedido-detail':
@@ -138,9 +138,9 @@ export default function TopAppBar({
       case 'fornecedores':
         return 'Portal de Fornecedores Homologados';
       case 'familias-skus':
-        return 'Engenharia de Catálogo e SKUs';
+        return 'Engenharia de Catálogo e Famílias';
       case 'bom-formulas':
-        return 'Fórmulas de Produto (BOM)';
+        return 'Receitas de Produto (BOM)';
       default:
         return 'Gestão Industrial';
     }
