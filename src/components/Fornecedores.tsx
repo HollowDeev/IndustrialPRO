@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Supplier } from '../types';
 import { useToast } from '../contexts/ToastContext';
+import { createClient } from '../utils/supabase/client';
 
 interface FornecedoresProps {
   suppliers: Supplier[];
@@ -20,8 +21,41 @@ export default function Fornecedores({
   externalSearchQuery = ''
 }: FornecedoresProps) {
   const { addToast } = useToast();
+  const supabase = createClient();
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+
+  useEffect(() => {
+    if (selectedSupplierId) {
+      loadAuditLogs(selectedSupplierId);
+    } else {
+      setAuditLogs([]);
+    }
+  }, [selectedSupplierId]);
+
+  const loadAuditLogs = async (fornId: string) => {
+    setLoadingLogs(true);
+    try {
+      const { data, error } = await supabase
+        .from('fornecedores_audit_log')
+        .select(`
+          *,
+          usuarios(email)
+        `)
+        .eq('fornecedor_id', fornId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setAuditLogs(data || []);
+    } catch (err) {
+      console.error('Erro ao buscar log de auditoria', err);
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
 
   // New Supplier Form State
   const [newName, setNewName] = useState('');
@@ -32,6 +66,16 @@ export default function Fornecedores({
   const [newAddress, setNewAddress] = useState('');
   const [newCategories, setNewCategories] = useState<string[]>([]);
   const [rating, setRating] = useState(90);
+
+  // N3 Specific Questions
+  const [passaTriagem, setPassaTriagem] = useState(false);
+  const [extraidoRotulo, setExtraidoRotulo] = useState(false);
+  const [moagemIniciaLavagem, setMoagemIniciaLavagem] = useState(false);
+  const [lavagemASeco, setLavagemASeco] = useState(false);
+  const [possuiLavadora, setPossuiLavadora] = useState(false);
+  const [possuiTanqueDecantacao, setPossuiTanqueDecantacao] = useState(false);
+  const [possuiSecadora, setPossuiSecadora] = useState(false);
+  const [possuiSoproSiloBag, setPossuiSoproSiloBag] = useState(false);
 
   const formatCNPJ = (value: string) => {
     const v = value.replace(/\D/g, '').slice(0, 14);
@@ -49,11 +93,11 @@ export default function Fornecedores({
 
   // Filtered Suppliers
   const filteredSuppliers = suppliers.filter(s => {
-    const search = externalSearchQuery.toLowerCase();
+    const search = externalSearchQuery?.toLowerCase() || '';
     if (!search) return true;
-    return s.name.toLowerCase().includes(search) || 
-           s.cnpj.includes(search) ||
-           s.contact.toLowerCase().includes(search);
+    return (s.name || '').toLowerCase().includes(search) || 
+           (s.cnpj || '').includes(search) ||
+           (s.contact || '').toLowerCase().includes(search);
   });
 
   const handleCreateSupplier = (e: React.FormEvent) => {
@@ -73,9 +117,18 @@ export default function Fornecedores({
         contact: newContact,
         contactEmail: newEmail,
         address: newAddress,
+        passa_triagem: passaTriagem,
+        extraido_rotulo: extraidoRotulo,
+        moagem_inicia_lavagem: moagemIniciaLavagem,
+        lavagem_a_seco: lavagemASeco,
+        possui_lavadora: possuiLavadora,
+        possui_tanque_decantacao: possuiTanqueDecantacao,
+        possui_secadora: possuiSecadora,
+        possui_sopro_silo_bag: possuiSoproSiloBag,
       };
       onUpdateSupplier(updatedSupplier);
       setIsEditing(false);
+      setIsAddingNew(false);
     } else {
       const newSupplier: Supplier = {
       id: `SUP-${(suppliers.length + 1).toString().padStart(3, '0')}`,
@@ -97,7 +150,15 @@ export default function Fornecedores({
       documents: [
         { id: 'doc-auto', name: 'Contrato Social Inicial', type: 'Legal', issueDate: new Date().toLocaleDateString('pt-BR'), expiryDate: 'Validade Vitalícia', status: 'Válido' }
       ],
-      history: []
+      history: [],
+      passa_triagem: passaTriagem,
+      extraido_rotulo: extraidoRotulo,
+      moagem_inicia_lavagem: moagemIniciaLavagem,
+      lavagem_a_seco: lavagemASeco,
+      possui_lavadora: possuiLavadora,
+      possui_tanque_decantacao: possuiTanqueDecantacao,
+      possui_secadora: possuiSecadora,
+      possui_sopro_silo_bag: possuiSoproSiloBag,
     };
 
     onAddSupplier(newSupplier);
@@ -113,6 +174,14 @@ export default function Fornecedores({
     setNewAddress('');
     setNewCategories([]);
     setRating(90);
+    setPassaTriagem(false);
+    setExtraidoRotulo(false);
+    setMoagemIniciaLavagem(false);
+    setLavagemASeco(false);
+    setPossuiLavadora(false);
+    setPossuiTanqueDecantacao(false);
+    setPossuiSecadora(false);
+    setPossuiSoproSiloBag(false);
   };
 
   const handleEditClick = () => {
@@ -124,6 +193,14 @@ export default function Fornecedores({
       setNewEmail(selectedSupplier.contactEmail);
       setNewAddress(selectedSupplier.address);
       setNewCategories(selectedSupplier.categories);
+      setPassaTriagem(selectedSupplier.passa_triagem || false);
+      setExtraidoRotulo(selectedSupplier.extraido_rotulo || false);
+      setMoagemIniciaLavagem(selectedSupplier.moagem_inicia_lavagem || false);
+      setLavagemASeco(selectedSupplier.lavagem_a_seco || false);
+      setPossuiLavadora(selectedSupplier.possui_lavadora || false);
+      setPossuiTanqueDecantacao(selectedSupplier.possui_tanque_decantacao || false);
+      setPossuiSecadora(selectedSupplier.possui_secadora || false);
+      setPossuiSoproSiloBag(selectedSupplier.possui_sopro_silo_bag || false);
       setIsEditing(true);
       setIsAddingNew(true);
     }
@@ -243,25 +320,37 @@ export default function Fornecedores({
                     <input 
                       type="checkbox" 
                       className="accent-secondary h-4 w-4"
-                      checked={newCategories.includes('Aço')}
+                      checked={newCategories.includes('ACO')}
                       onChange={(e) => {
-                        if (e.target.checked) setNewCategories([...newCategories, 'Aço']);
-                        else setNewCategories(newCategories.filter(c => c !== 'Aço'));
+                        if (e.target.checked) setNewCategories([...newCategories, 'ACO']);
+                        else setNewCategories(newCategories.filter(c => c !== 'ACO'));
                       }}
                     />
-                    Aço
+                    ACO
                   </label>
                   <label className="flex items-center gap-2 text-xs font-semibold text-primary cursor-pointer">
                     <input 
                       type="checkbox" 
                       className="accent-secondary h-4 w-4"
-                      checked={newCategories.includes('Químico (Blend)')}
+                      checked={newCategories.includes('QUIMICO')}
                       onChange={(e) => {
-                        if (e.target.checked) setNewCategories([...newCategories, 'Químico (Blend)']);
-                        else setNewCategories(newCategories.filter(c => c !== 'Químico (Blend)'));
+                        if (e.target.checked) setNewCategories([...newCategories, 'QUIMICO']);
+                        else setNewCategories(newCategories.filter(c => c !== 'QUIMICO'));
                       }}
                     />
-                    Químico (Blend)
+                    QUIMICO
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-semibold text-primary cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="accent-secondary h-4 w-4"
+                      checked={newCategories.includes('POLIMERO')}
+                      onChange={(e) => {
+                        if (e.target.checked) setNewCategories([...newCategories, 'POLIMERO']);
+                        else setNewCategories(newCategories.filter(c => c !== 'POLIMERO'));
+                      }}
+                    />
+                    POLIMERO
                   </label>
                 </div>
               </div>
@@ -275,6 +364,84 @@ export default function Fornecedores({
                   onChange={(e) => setNewAddress(e.target.value)}
                   className="w-full bg-surface-container-low text-primary border border-outline/20 rounded-lg p-2.5 text-xs focus:border-secondary outline-hidden"
                 />
+              </div>
+            </div>
+
+            <div className="border border-outline/20 rounded-lg p-4 bg-surface-container-low">
+              <label className="block text-xs font-bold text-primary mb-3 uppercase tracking-wider">Perguntas de Qualificação (Nível 3)</label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <label className="flex items-center gap-2 text-xs font-semibold text-primary cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="accent-secondary h-4 w-4"
+                    checked={passaTriagem}
+                    onChange={(e) => setPassaTriagem(e.target.checked)}
+                  />
+                  Passa por uma triagem?
+                </label>
+                <label className="flex items-center gap-2 text-xs font-semibold text-primary cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="accent-secondary h-4 w-4"
+                    checked={extraidoRotulo}
+                    onChange={(e) => setExtraidoRotulo(e.target.checked)}
+                  />
+                  É extraído o rótulo?
+                </label>
+                <label className="flex items-center gap-2 text-xs font-semibold text-primary cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="accent-secondary h-4 w-4"
+                    checked={moagemIniciaLavagem}
+                    onChange={(e) => setMoagemIniciaLavagem(e.target.checked)}
+                  />
+                  Na moagem inicia lavagem?
+                </label>
+                <label className="flex items-center gap-2 text-xs font-semibold text-primary cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="accent-secondary h-4 w-4"
+                    checked={lavagemASeco}
+                    onChange={(e) => setLavagemASeco(e.target.checked)}
+                  />
+                  Lavagem é a seco?
+                </label>
+                <label className="flex items-center gap-2 text-xs font-semibold text-primary cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="accent-secondary h-4 w-4"
+                    checked={possuiLavadora}
+                    onChange={(e) => setPossuiLavadora(e.target.checked)}
+                  />
+                  Lavadora?
+                </label>
+                <label className="flex items-center gap-2 text-xs font-semibold text-primary cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="accent-secondary h-4 w-4"
+                    checked={possuiTanqueDecantacao}
+                    onChange={(e) => setPossuiTanqueDecantacao(e.target.checked)}
+                  />
+                  Tanque de decantação?
+                </label>
+                <label className="flex items-center gap-2 text-xs font-semibold text-primary cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="accent-secondary h-4 w-4"
+                    checked={possuiSecadora}
+                    onChange={(e) => setPossuiSecadora(e.target.checked)}
+                  />
+                  Secadora?
+                </label>
+                <label className="flex items-center gap-2 text-xs font-semibold text-primary cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="accent-secondary h-4 w-4"
+                    checked={possuiSoproSiloBag}
+                    onChange={(e) => setPossuiSoproSiloBag(e.target.checked)}
+                  />
+                  Sopro/Silo/Bag?
+                </label>
               </div>
             </div>
 
@@ -389,6 +556,58 @@ export default function Fornecedores({
               </div>
             </div>
 
+            {/* Qualificação N3 View */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 text-xs">
+              <div>
+                <span className="text-outline font-medium flex items-center gap-1"><span className="material-symbols-outlined notranslate text-[14px]">checklist</span> Passa Triagem?</span>
+                <p className={`font-bold mt-1 ${selectedSupplier.passa_triagem ? 'text-tertiary' : 'text-outline-variant'}`}>
+                  {selectedSupplier.passa_triagem ? 'Sim' : 'Não'}
+                </p>
+              </div>
+              <div>
+                <span className="text-outline font-medium flex items-center gap-1"><span className="material-symbols-outlined notranslate text-[14px]">label_off</span> Extraído Rótulo?</span>
+                <p className={`font-bold mt-1 ${selectedSupplier.extraido_rotulo ? 'text-tertiary' : 'text-outline-variant'}`}>
+                  {selectedSupplier.extraido_rotulo ? 'Sim' : 'Não'}
+                </p>
+              </div>
+              <div>
+                <span className="text-outline font-medium flex items-center gap-1"><span className="material-symbols-outlined notranslate text-[14px]">water_drop</span> Moagem & Lavagem?</span>
+                <p className={`font-bold mt-1 ${selectedSupplier.moagem_inicia_lavagem ? 'text-tertiary' : 'text-outline-variant'}`}>
+                  {selectedSupplier.moagem_inicia_lavagem ? 'Sim' : 'Não'}
+                </p>
+              </div>
+              <div>
+                <span className="text-outline font-medium flex items-center gap-1"><span className="material-symbols-outlined notranslate text-[14px]">dry</span> Lavagem a Seco?</span>
+                <p className={`font-bold mt-1 ${selectedSupplier.lavagem_a_seco ? 'text-tertiary' : 'text-outline-variant'}`}>
+                  {selectedSupplier.lavagem_a_seco ? 'Sim' : 'Não'}
+                </p>
+              </div>
+              <div>
+                <span className="text-outline font-medium flex items-center gap-1"><span className="material-symbols-outlined notranslate text-[14px]">local_laundry_service</span> Lavadora?</span>
+                <p className={`font-bold mt-1 ${selectedSupplier.possui_lavadora ? 'text-tertiary' : 'text-outline-variant'}`}>
+                  {selectedSupplier.possui_lavadora ? 'Sim' : 'Não'}
+                </p>
+              </div>
+              <div>
+                <span className="text-outline font-medium flex items-center gap-1"><span className="material-symbols-outlined notranslate text-[14px]">waves</span> Decantação?</span>
+                <p className={`font-bold mt-1 ${selectedSupplier.possui_tanque_decantacao ? 'text-tertiary' : 'text-outline-variant'}`}>
+                  {selectedSupplier.possui_tanque_decantacao ? 'Sim' : 'Não'}
+                </p>
+              </div>
+              <div>
+                <span className="text-outline font-medium flex items-center gap-1"><span className="material-symbols-outlined notranslate text-[14px]">heat_pump</span> Secadora?</span>
+                <p className={`font-bold mt-1 ${selectedSupplier.possui_secadora ? 'text-tertiary' : 'text-outline-variant'}`}>
+                  {selectedSupplier.possui_secadora ? 'Sim' : 'Não'}
+                </p>
+              </div>
+              <div>
+                <span className="text-outline font-medium flex items-center gap-1"><span className="material-symbols-outlined notranslate text-[14px]">air</span> Sopro/Silo/Bag?</span>
+                <p className={`font-bold mt-1 ${selectedSupplier.possui_sopro_silo_bag ? 'text-tertiary' : 'text-outline-variant'}`}>
+                  {selectedSupplier.possui_sopro_silo_bag ? 'Sim' : 'Não'}
+                </p>
+              </div>
+            </div>
+
             {/* Change Score Interactive Control */}
             <div className="p-4 bg-surface-bright rounded-xl border border-outline-variant/30 max-w-md space-y-2">
               <div className="flex justify-between items-center text-xs font-bold text-primary">
@@ -461,6 +680,75 @@ export default function Fornecedores({
                         <div className={`px-2 py-1 rounded ${item.status === 'Concluído' ? 'bg-tertiary-fixed text-on-tertiary-fixed' : item.status === 'Pendente' ? 'bg-secondary-container text-on-secondary-container' : 'bg-error-container text-on-error-container'}`}>
                           {item.status}
                         </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Audit Log Section */}
+            <div className="lg:col-span-12 bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-xs">
+              <h3 className="text-base font-bold text-primary flex items-center gap-2 mb-4">
+                <span className="material-symbols-outlined notranslate text-secondary">manage_history</span>
+                Histórico de Alterações (Auditoria)
+              </h3>
+              
+              <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                {loadingLogs ? (
+                  <p className="text-xs text-outline animate-pulse">Carregando histórico...</p>
+                ) : auditLogs.length === 0 ? (
+                  <p className="text-xs text-outline font-semibold bg-surface-container-low p-4 rounded-xl text-center">
+                    Nenhuma alteração registrada ainda para este parceiro.
+                  </p>
+                ) : (
+                  auditLogs.map(log => (
+                    <div key={log.id} className="relative pl-6 pb-6 border-l-2 border-surface-container-high last:border-transparent last:pb-0">
+                      <div className="absolute w-3 h-3 rounded-full bg-secondary left-[-7px] top-1"></div>
+                      <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant/30">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-sm mr-2 ${
+                              log.acao === 'INSERT' ? 'bg-green-100 text-green-700' :
+                              log.acao === 'UPDATE' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
+                            }`}>
+                              {log.acao}
+                            </span>
+                            <span className="text-xs font-bold text-primary">{log.usuarios?.email || 'Sistema'}</span>
+                          </div>
+                          <span className="text-[10px] font-bold text-outline">
+                            {new Date(log.created_at).toLocaleString('pt-BR')}
+                          </span>
+                        </div>
+                        {log.acao === 'UPDATE' && log.dados_novos && log.dados_antigos && (
+                          <div className="text-[11px] text-outline font-mono bg-surface-container-lowest p-2 rounded border border-outline-variant/20 mt-2 overflow-x-auto">
+                            Modificações detectadas:
+                            <ul className="list-disc list-inside mt-1">
+                              {Object.keys(log.dados_novos).map(key => {
+                                if (JSON.stringify(log.dados_novos[key]) !== JSON.stringify(log.dados_antigos[key])) {
+                                  // Skip metadata like updated_at
+                                  if (key === 'updated_at' || key === 'created_at') return null;
+                                  return (
+                                    <li key={key}>
+                                      <span className="font-bold text-primary">{key}:</span>{' '}
+                                      <span className="text-red-500 line-through">
+                                        {typeof log.dados_antigos[key] === 'object' ? 'Objeto' : String(log.dados_antigos[key])}
+                                      </span>{' '}
+                                      &rarr;{' '}
+                                      <span className="text-green-600">
+                                        {typeof log.dados_novos[key] === 'object' ? 'Objeto' : String(log.dados_novos[key])}
+                                      </span>
+                                    </li>
+                                  )
+                                }
+                                return null;
+                              })}
+                            </ul>
+                          </div>
+                        )}
+                        {log.acao === 'INSERT' && (
+                          <p className="text-[11px] text-outline mt-1">Fornecedor Nível 3 criado no sistema.</p>
+                        )}
                       </div>
                     </div>
                   ))

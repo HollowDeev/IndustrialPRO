@@ -21,7 +21,9 @@ interface OP {
   };
   pedidos?: {
     codigo: string;
-    nome_cliente: string;
+    clientes?: {
+      razao_social: string;
+    }
   };
 }
 
@@ -63,7 +65,7 @@ export default function ApontamentoScreen({ orders, onStartProduction }: Apontam
       setTimeout(() => setMsg({ text: '', type: '' }), 4000);
     }
   };
-
+  
   // Carregar dados de OPs ativas e funcionários
   const loadFormData = async () => {
     try {
@@ -87,7 +89,7 @@ export default function ApontamentoScreen({ orders, onStartProduction }: Apontam
           ),
           pedidos (
             codigo,
-            nome_cliente
+            clientes (razao_social)
           )
         `)
         .in('status', ['ABERTA', 'EM_ANDAMENTO']);
@@ -127,7 +129,7 @@ export default function ApontamentoScreen({ orders, onStartProduction }: Apontam
       if (foundOP && foundOP.skus) {
         setSelectedSKU({
           id: foundOP.skus.id,
-          codigo: foundOP.skus.codigo,
+          codigo: foundOP.skus.familias_produto?.nome || 'Medida',
           comprimento_mm: foundOP.skus.comprimento_mm
         });
       }
@@ -291,7 +293,7 @@ export default function ApontamentoScreen({ orders, onStartProduction }: Apontam
                   <option value="">Selecione a OP ativa...</option>
                   {activeOPs.map(op => (
                     <option key={op.id} value={op.id}>
-                      {op.pedidos?.codigo || 'OP'} - {op.pedidos?.nome_cliente || 'Sem Cliente'} ({op.skus?.familias_produto?.nome} {op.skus?.codigo})
+                      {op.pedidos?.codigo || 'OP'} - {op.pedidos?.clientes?.razao_social || 'Sem Cliente'} ({op.skus?.familias_produto?.nome} - {op.skus?.comprimento_mm}mm)
                     </option>
                   ))}
                 </select>

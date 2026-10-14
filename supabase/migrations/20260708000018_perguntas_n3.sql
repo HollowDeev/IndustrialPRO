@@ -1,0 +1,8 @@
+-- Migration: Fase 5 - Perguntas Fornecedor N3
+
+ALTER TABLE public.fornecedores
+ADD COLUMN IF NOT EXISTS possui_linha_lavagem BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS possui_moinho BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS possui_extrusora BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS possui_balanca BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS possui_licenca_ambiental BOOLEAN DEFAULT FALSE;
