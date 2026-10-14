@@ -16,7 +16,9 @@ export async function POST(request: Request) {
       .select(`
         id,
         codigo,
-        nome_cliente,
+        clientes (
+          razao_social
+        ),
         localizacao,
         prioridade,
         ordens_producao (
@@ -97,18 +99,27 @@ export async function POST(request: Request) {
 
       // A) Constantes Físicas da Família
       const areaSecaoM2 = Number(familia.area_secao_externa) || 0
-      const volAcoM = Number(familia.volume_aco_metro) || 0
       const densidadeKgM3 = (Number(familia.densidade_g_cm3) || 0.95) * 1000 // Conversão g/cm3 para kg/m3
 
       // B) Volumes por Peça
+      let qtdHastesAco = 1
+      let areaSecaoAcoM2 = 0
+      
+      const acoBom = (familia.bom || []).find((b: any) => b.insumos && b.insumos.categoria === 'ACO')
+      if (acoBom) {
+        qtdHastesAco = acoBom.quantidade_por_unidade || 1
+        if (acoBom.insumos.bitola_mm) {
+          const radiusM = (Number(acoBom.insumos.bitola_mm) / 1000.0) / 2.0
+          areaSecaoAcoM2 = Math.PI * Math.pow(radiusM, 2)
+        }
+      }
+
       const volTotalPecaM3 = areaSecaoM2 * compPecaM
-      const volAcoPecaM3 = volAcoM * compAcoM
+      const volAcoPecaM3 = areaSecaoAcoM2 * compAcoM * qtdHastesAco
       const volPlasticoPecaM3 = Math.max(0, volTotalPecaM3 - volAcoPecaM3)
 
-      // C) Pesos Totais da OP (Volume * Densidade * Quantidade)
+      // C) Massa Total de Plástico (Volume * Densidade * Quantidade)
       const pesoPlasticoOpKg = volPlasticoPecaM3 * densidadeKgM3 * qtdPlanejada
-      const compAcoTotalM = compAcoM * qtdPlanejada
-      const pesoAcoTotalKg = compAcoTotalM * 0.395 // Peso nominal aço Ø8mm = 0.395 kg/m
 
       // D) Explosão do BOM (Fórmulas do Blend)
       for (const itemBOM of (familia.bom || [])) {
@@ -116,6 +127,11 @@ export async function POST(request: Request) {
         if (!insumo) continue
 
         if (insumo.categoria === 'ACO') {
+          const quantidadeHastes = itemBOM.quantidade_por_unidade || 1
+          const compAcoTotalM = compAcoM * quantidadeHastes * qtdPlanejada
+          const pesoNominal = insumo.peso_nominal_kg_m !== null ? Number(insumo.peso_nominal_kg_m) : 0.395
+          const pesoAcoTotalKg = compAcoTotalM * pesoNominal
+
           // Aço é calculado linearmente ou por peso dependendo da unidade
           if (insumo.unidade_medida.toLowerCase() === 'm') {
             registrarNecessidade(insumo, compAcoTotalM)
@@ -174,7 +190,7 @@ export async function POST(request: Request) {
       pedido: {
         id: pedido.id,
         codigo: pedido.codigo,
-        cliente: pedido.nome_cliente,
+        cliente: (pedido.clientes as any)?.razao_social || 'Cliente Não Informado',
         prioridade: pedido.prioridade
       },
       status: statusGeral,

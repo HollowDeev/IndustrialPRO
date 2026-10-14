@@ -78,15 +78,17 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
       const mapped = dbInsumos.map(ins => {
         const meta = ins.metadados || {};
         return {
-          id: meta.codigo || ins.nome.substring(0, 6).toUpperCase(),
-          realId: ins.id,
+          id: ins.id,
           description: ins.nome,
+          category: ins.categoria as 'ACO' | 'QUIMICO' | 'EMBALAGEM' | 'OUTROS',
           purchaseUnit: ins.unidade_medida as 'Kg' | 'Litro' | 'Metro',
           supplierId: meta.fornecedor_id || '',
           lastPurchaseDate: meta.last_purchase_date || '',
           lastPurchasePrice: Number(meta.last_purchase_price) || 0,
           lastPurchaseQty: Number(meta.last_purchase_qty) || 0,
           currentStock: Number(ins.estoque_atual) || 0,
+          peso_nominal_kg_m: ins.peso_nominal_kg_m !== null ? Number(ins.peso_nominal_kg_m) : null,
+          bitola_mm: ins.bitola_mm !== null ? Number(ins.bitola_mm) : null,
           supplierRankings: meta.rankings || []
         };
       });
@@ -159,17 +161,18 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
   });
 
   const handleStartAddNew = () => {
-    const nextCodeNum = materials.length + 1;
-    const autoCode = `MP-${nextCodeNum.toString().padStart(3, '0')}`;
     setNewMat({
-      id: autoCode,
+      id: '',
       description: '',
+      category: 'QUIMICO',
       purchaseUnit: 'Kg',
       supplierId: suppliers.length > 0 ? suppliers[0].id : '',
       lastPurchaseDate: new Date().toISOString().substring(0, 10),
       lastPurchasePrice: 0,
       lastPurchaseQty: 0,
       currentStock: 0,
+      peso_nominal_kg_m: null,
+      bitola_mm: null,
       supplierRankings: []
     });
     setIsAddingNew(true);
@@ -177,13 +180,8 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
 
   const handleCreateMaterial = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMat.id || !newMat.description || !newMat.supplierId) {
-      addToast('Por favor, preencha o Código, Descrição e Fornecedor Principal.', 'warning');
-      return;
-    }
-
-    if (materials.some(m => m.id === newMat.id)) {
-      addToast(`Já existe uma matéria-prima cadastrada com o código ${newMat.id}.`, 'warning');
+    if (!newMat.description || !newMat.supplierId) {
+      addToast('Por favor, preencha a Descrição e o Fornecedor Principal.', 'warning');
       return;
     }
 
@@ -194,19 +192,17 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
     const empresaId = profile?.empresa_id;
     if (!empresaId) return;
 
-    const isSteel = newMat.description.toLowerCase().includes('aço') || newMat.description.toLowerCase().includes('chapa');
-    const category = isSteel ? 'ACO' : 'QUIMICO';
-
     const { error } = await supabase
       .from('insumos')
       .insert({
         empresa_id: empresaId,
         nome: newMat.description,
-        categoria: category,
+        categoria: newMat.category || 'QUIMICO',
         unidade_medida: newMat.purchaseUnit,
         estoque_atual: Number(newMat.currentStock) || 0,
+        peso_nominal_kg_m: newMat.peso_nominal_kg_m ? Number(newMat.peso_nominal_kg_m) : null,
+        bitola_mm: newMat.bitola_mm ? Number(newMat.bitola_mm) : null,
         metadados: {
-          codigo: newMat.id,
           fornecedor_id: newMat.supplierId,
           last_purchase_date: newMat.lastPurchaseDate || '',
           last_purchase_price: Number(newMat.lastPurchasePrice) || 0,
@@ -220,7 +216,6 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
     } else {
       setIsAddingNew(false);
       await fetchMaterials();
-      setSelectedMaterialId(newMat.id || '');
     }
   };
 
@@ -234,20 +229,18 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
     }
 
     const original = materials.find(m => m.id === editForm.id);
-    if (!original || !(original as any).realId) return;
-
-    const isSteel = editForm.description.toLowerCase().includes('aço') || editForm.description.toLowerCase().includes('chapa');
-    const category = isSteel ? 'ACO' : 'QUIMICO';
+    if (!original) return;
 
     const { error } = await supabase
       .from('insumos')
       .update({
         nome: editForm.description,
-        categoria: category,
+        categoria: editForm.category || 'QUIMICO',
         unidade_medida: editForm.purchaseUnit,
         estoque_atual: Number(editForm.currentStock) || 0,
+        peso_nominal_kg_m: editForm.peso_nominal_kg_m ? Number(editForm.peso_nominal_kg_m) : null,
+        bitola_mm: editForm.bitola_mm ? Number(editForm.bitola_mm) : null,
         metadados: {
-          codigo: editForm.id,
           fornecedor_id: editForm.supplierId,
           last_purchase_date: editForm.lastPurchaseDate || '',
           last_purchase_price: Number(editForm.lastPurchasePrice) || 0,
@@ -255,7 +248,7 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
           rankings: editForm.supplierRankings || []
         }
       })
-      .eq('id', (original as any).realId);
+      .eq('id', editForm.id);
 
     if (error) {
       addToast(`Erro ao atualizar insumo: ${error.message}`, 'error');
@@ -267,13 +260,10 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
 
   const handleDeleteMaterial = async (id: string) => {
     if (confirm('Deseja realmente excluir esta matéria-prima?')) {
-      const original = materials.find(m => m.id === id);
-      if (!original || !(original as any).realId) return;
-
       const { error } = await supabase
         .from('insumos')
         .delete()
-        .eq('id', (original as any).realId);
+        .eq('id', id);
 
       if (error) {
         addToast(`Erro ao excluir insumo: ${error.message}`, 'error');
@@ -289,7 +279,6 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
     if (!currentMaterial || !newRanking.supplierId) return;
 
     const original = currentMaterial;
-    if (!original || !(original as any).realId) return;
 
     if (currentMaterial.supplierRankings.some(r => r.supplierId === newRanking.supplierId)) {
       addToast('Já existe um ranking cadastrado para este fornecedor nesta matéria-prima.', 'warning');
@@ -310,7 +299,6 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
       .from('insumos')
       .update({
         metadados: {
-          codigo: currentMaterial.id,
           fornecedor_id: currentMaterial.supplierId,
           last_purchase_date: currentMaterial.lastPurchaseDate || '',
           last_purchase_price: Number(currentMaterial.lastPurchasePrice) || 0,
@@ -318,7 +306,7 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
           rankings: updatedRankings
         }
       })
-      .eq('id', (original as any).realId);
+      .eq('id', original.id);
 
     if (error) {
       addToast(`Erro ao salvar ranking: ${error.message}`, 'error');
@@ -339,7 +327,6 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
 
     if (confirm('Deseja remover este fornecedor do ranking desta matéria-prima?')) {
       const original = currentMaterial;
-      if (!original || !(original as any).realId) return;
 
       const updatedRankings = currentMaterial.supplierRankings.filter(r => r.supplierId !== supplierId);
 
@@ -347,7 +334,6 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
         .from('insumos')
         .update({
           metadados: {
-            codigo: currentMaterial.id,
             fornecedor_id: currentMaterial.supplierId,
             last_purchase_date: currentMaterial.lastPurchaseDate || '',
             last_purchase_price: Number(currentMaterial.lastPurchasePrice) || 0,
@@ -355,7 +341,7 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
             rankings: updatedRankings
           }
         })
-        .eq('id', (original as any).realId);
+        .eq('id', original.id);
 
       if (error) {
         addToast(`Erro ao remover ranking: ${error.message}`, 'error');
@@ -427,7 +413,7 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
                           <span className="text-xs font-bold text-left line-clamp-1">{m.description}</span>
                         </div>
                         <div className="flex items-center gap-2 text-[10px] text-outline text-left">
-                          <span className="font-mono bg-surface-container px-1 py-0.2 rounded text-outline font-bold">{m.id}</span>
+                          <span className="font-mono bg-surface-container px-1 py-0.2 rounded text-outline font-bold">{m.category}</span>
                           <span>•</span>
                           <span>Un: {m.purchaseUnit}</span>
                         </div>
@@ -477,33 +463,34 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
                   <span>1. Especificações Iniciais</span>
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                  <div className="md:col-span-3">
-                    <label className="block text-[11px] font-bold text-outline uppercase mb-1">Código</label>
-                    <input
-                      type="text"
-                      required
-                      value={newMat.id}
-                      onChange={(e) => setNewMat({ ...newMat, id: e.target.value.toUpperCase() })}
-                      placeholder="Ex: MP-004"
-                      className="w-full text-xs bg-surface-bright border border-outline-variant rounded-lg p-2.5 text-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                  <div className="md:col-span-9">
+                  <div className="md:col-span-12">
                     <label className="block text-[11px] font-bold text-outline uppercase mb-1">Descrição / Nome do Insumo</label>
                     <input
                       type="text"
                       required
                       value={newMat.description}
                       onChange={(e) => setNewMat({ ...newMat, description: e.target.value })}
-                      placeholder="Ex: Resina Polietileno de Alta Densidade (HDPE)"
+                      placeholder="Ex: PP H 103"
                       className="w-full text-xs bg-surface-bright border border-outline-variant rounded-lg p-2.5 text-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-[11px] font-bold text-outline uppercase mb-1">Unidade de Compra</label>
+                    <label className="block text-[11px] font-bold text-outline uppercase mb-1">Categoria</label>
+                    <select
+                      value={newMat.category}
+                      onChange={(e) => setNewMat({ ...newMat, category: e.target.value as any })}
+                      className="w-full text-xs bg-surface-bright border border-outline-variant rounded-lg p-2.5 text-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="POLIMERO">Polímero (Resina Base)</option>
+                      <option value="QUIMICO">Químico (Aditivo/Processo)</option>
+                      <option value="ACO">Aço / Metal</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-outline uppercase mb-1">Un. de Compra</label>
                     <select
                       value={newMat.purchaseUnit}
                       onChange={(e) => setNewMat({ ...newMat, purchaseUnit: e.target.value as 'Kg' | 'Litro' | 'Metro' })}
@@ -522,7 +509,7 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
                       onChange={(e) => setNewMat({ ...newMat, supplierId: e.target.value })}
                       className="w-full text-xs bg-surface-bright border border-outline-variant rounded-lg p-2.5 text-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     >
-                      <option value="" disabled>Selecione um fornecedor homologado...</option>
+                      <option value="" disabled>Selecione um fornecedor...</option>
                       {suppliers.map(sup => (
                         <option key={sup.id} value={sup.id}>
                           {sup.name}
@@ -574,7 +561,7 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-outline uppercase mb-1">Estoque Atual ({newMat.purchaseUnit.toUpperCase()})</label>
+                    <label className="block text-[11px] font-bold text-outline uppercase mb-1">Estoque Atual ({(newMat.purchaseUnit || '').toUpperCase()})</label>
                     <input
                       type="number"
                       value={newMat.currentStock || ''}
@@ -584,6 +571,35 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
                     />
                   </div>
                 </div>
+
+                {newMat.category === 'ACO' && (
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+                    <div>
+                      <label className="block text-[11px] font-bold text-outline uppercase mb-1">Peso Nominal (Kg/m)</label>
+                      <input
+                        type="number"
+                        step="0.0001"
+                        required
+                        value={newMat.peso_nominal_kg_m || ''}
+                        onChange={(e) => setNewMat({ ...newMat, peso_nominal_kg_m: e.target.value })}
+                        placeholder="Ex: 0.395 (p/ Aço)"
+                        className="w-full text-xs bg-surface-bright border border-outline-variant rounded-lg p-2.5 text-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-outline uppercase mb-1">Bitola (mm)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        required
+                        value={newMat.bitola_mm || ''}
+                        onChange={(e) => setNewMat({ ...newMat, bitola_mm: e.target.value })}
+                        placeholder="Ex: 8.0"
+                        className="w-full text-xs bg-surface-bright border border-outline-variant rounded-lg p-2.5 text-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-outline-variant">
@@ -617,7 +633,7 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
                       <h3 className="text-lg font-extrabold text-primary text-left leading-tight">{currentMaterial.description}</h3>
                     </div>
                     <p className="text-xs text-outline font-medium flex items-center gap-2">
-                      <span className="font-mono bg-surface-container px-2 py-0.5 rounded text-outline font-bold">{currentMaterial.id}</span>
+                      <span className="bg-surface-container px-2 py-0.5 rounded text-outline font-bold">{currentMaterial.category}</span>
                       <span>•</span>
                       <span>Unidade de Compra: <strong className="text-primary">{currentMaterial.purchaseUnit}</strong></span>
                     </p>
@@ -665,15 +681,29 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
 
                   {isEditing && editForm ? (
                     <div className="space-y-3.5 text-xs">
-                      <div>
-                        <label className="block text-[10px] font-bold text-outline uppercase mb-0.5">Descrição</label>
-                        <input
-                          type="text"
-                          required
-                          value={editForm.description}
-                          onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                          className="w-full bg-surface-bright border border-outline-variant rounded-lg p-2 focus:outline-none"
-                        />
+                      <div className="grid grid-cols-2 gap-2 mt-4">
+                        <div>
+                          <label className="block text-[10px] font-bold text-outline uppercase mb-0.5">Descrição</label>
+                          <input
+                            type="text"
+                            required
+                            value={editForm.description}
+                            onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                            className="w-full bg-surface-bright border border-outline-variant rounded-lg p-2 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-outline uppercase mb-0.5">Categoria</label>
+                          <select
+                            value={editForm.category}
+                            onChange={(e) => setEditForm({ ...editForm, category: e.target.value as any })}
+                            className="w-full bg-surface-bright border border-outline-variant rounded-lg p-2 focus:outline-none"
+                          >
+                            <option value="POLIMERO">Polímero (Resina Base)</option>
+                            <option value="QUIMICO">Químico (Aditivo/Processo)</option>
+                            <option value="ACO">Aço / Metal</option>
+                          </select>
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-2">
@@ -703,6 +733,35 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
                         </div>
                       </div>
 
+                      {editForm.category === 'ACO' && (
+                        <div className="grid grid-cols-2 gap-2 mt-2">
+                          <div>
+                            <label className="block text-[10px] font-bold text-outline uppercase mb-0.5">Peso Nominal (Kg/m)</label>
+                            <input
+                              type="number"
+                              step="0.0001"
+                              required
+                              value={editForm.peso_nominal_kg_m || ''}
+                              onChange={(e) => setEditForm({ ...editForm, peso_nominal_kg_m: e.target.value })}
+                              placeholder="Ex: 0.395 (p/ Aço)"
+                              className="w-full bg-surface-bright border border-outline-variant rounded-lg p-2 focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-outline uppercase mb-0.5">Bitola (mm)</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              required
+                              value={editForm.bitola_mm || ''}
+                              onChange={(e) => setEditForm({ ...editForm, bitola_mm: e.target.value })}
+                              placeholder="Ex: 8.0"
+                              className="w-full bg-surface-bright border border-outline-variant rounded-lg p-2 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      )}
+
                       <div className="pt-2 flex justify-end gap-2">
                         <button
                           type="button"
@@ -730,15 +789,23 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
                         <span className="font-semibold text-primary block text-left">{currentMaterial.description}</span>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <span className="block text-[10px] font-bold text-outline uppercase text-left">Código do Sistema</span>
-                          <span className="font-mono font-bold text-primary block text-left">{currentMaterial.id}</span>
-                        </div>
+                      <div className="grid grid-cols-2 gap-4 mt-2">
                         <div>
                           <span className="block text-[10px] font-bold text-outline uppercase text-left">Unidade de Medida</span>
                           <span className="font-bold text-primary block text-left">{currentMaterial.purchaseUnit}</span>
                         </div>
+                        {currentMaterial.peso_nominal_kg_m && (
+                          <div>
+                            <span className="block text-[10px] font-bold text-outline uppercase text-left">Peso Nominal</span>
+                            <span className="font-bold text-primary block text-left">{currentMaterial.peso_nominal_kg_m} Kg/m</span>
+                          </div>
+                        )}
+                        {currentMaterial.bitola_mm && (
+                          <div>
+                            <span className="block text-[10px] font-bold text-outline uppercase text-left">Bitola</span>
+                            <span className="font-bold text-primary block text-left">{currentMaterial.bitola_mm} mm</span>
+                          </div>
+                        )}
                       </div>
 
                       <div>
@@ -798,7 +865,7 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-bold text-outline uppercase mb-0.5">Estoque Atual ({editForm.purchaseUnit.toUpperCase()})</label>
+                          <label className="block text-[10px] font-bold text-outline uppercase mb-0.5">Estoque Atual ({(editForm.purchaseUnit || '').toUpperCase()})</label>
                           <input
                             type="number"
                             value={editForm.currentStock}
@@ -807,6 +874,8 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
                           />
                         </div>
                       </div>
+
+
 
                       <div className="pt-2 flex justify-end gap-2">
                         <button

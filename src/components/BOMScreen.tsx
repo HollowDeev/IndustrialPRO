@@ -11,7 +11,7 @@ interface Familia {
 interface Insumo {
   id: string
   nome: string
-  categoria: 'ACO' | 'QUIMICO' | 'EMBALAGEM' | 'OUTROS'
+  categoria: 'ACO' | 'QUIMICO' | 'POLIMERO'
   unidade_medida: string
 }
 
@@ -52,7 +52,7 @@ export default function BOMScreen() {
   // Carregar dados de base
   const loadBaseData = async () => {
     setLoading(true)
-    const { data: famData } = await supabase.from('familias_produto').select('id, nome').order('nome')
+    const { data: famData } = await supabase.from('familias_produto').select('id, nome').is('deleted_at', null).order('nome')
     const { data: insData } = await supabase.from('insumos').select('id, nome, categoria, unidade_medida').order('nome')
 
     if (famData) {
@@ -113,9 +113,17 @@ export default function BOMScreen() {
       return
     }
 
+    const isAco = insumo.categoria === 'ACO';
+    const isPolimero = insumo.categoria === 'POLIMERO';
+
+    if (isPolimero && (pctBlend === '' || parseFloat(pctBlend) <= 0)) {
+      showMsg('Polímeros exigem o preenchimento do percentual (%) no blend.', 'error');
+      return;
+    }
+
     const newItem: BOMItem = {
       insumo_id: selectedInsumoId,
-      quantidade_por_unidade: parseFloat(qtdPorUnidade) || 0,
+      quantidade_por_unidade: isAco ? Math.floor(parseFloat(qtdPorUnidade) || 0) : (parseFloat(qtdPorUnidade) || 0),
       percentual_blend: pctBlend !== '' ? parseFloat(pctBlend) : null,
       insumo
     }
@@ -136,12 +144,12 @@ export default function BOMScreen() {
     if (!selectedFamiliaId) return
     setActionLoading(true)
 
-    // 1. Validar regra química: O somatório do percentual_blend dos químicos na receita deve somar exatamente 100%
-    const blendQuimicos = bomItems.filter(item => item.insumo?.categoria === 'QUIMICO' && item.percentual_blend !== null)
-    const somaPercentual = blendQuimicos.reduce((sum, item) => sum + (item.percentual_blend || 0), 0)
+    // 1. Validar regra química: O somatório do percentual_blend dos polímeros na receita deve somar exatamente 100%
+    const blendPolimeros = bomItems.filter(item => item.insumo?.categoria === 'POLIMERO' && item.percentual_blend !== null)
+    const somaPercentual = blendPolimeros.reduce((sum, item) => sum + (item.percentual_blend || 0), 0)
 
-    if (blendQuimicos.length > 0 && Math.abs(somaPercentual - 100) > 0.01) {
-      showMsg(`Atenção: A soma dos polímeros secos da receita é de ${somaPercentual}%. Ela deve fechar em exatamente 100%!`, 'error')
+    if (blendPolimeros.length > 0 && Math.abs(somaPercentual - 100) > 0.01) {
+      showMsg(`Atenção: A soma dos polímeros da receita é de ${somaPercentual}%. Ela deve fechar em exatamente 100%!`, 'error')
       setActionLoading(false)
       return
     }
@@ -207,7 +215,7 @@ export default function BOMScreen() {
       {/* Header com mensagens */}
       <div className="flex justify-between items-center border-b border-outline-variant pb-4">
         <div>
-          <h3 className="text-base font-bold text-primary">Engenharia de Produto - BOM (Fórmulas)</h3>
+          <h3 className="text-base font-bold text-primary">Engenharia de Produto - Receitas (BOM)</h3>
           <p className="text-xs text-outline">Defina a formulação química do blend de plástico e aditivos estruturais</p>
         </div>
         {msg.text && (
@@ -254,37 +262,53 @@ export default function BOMScreen() {
                   </select>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[9px] font-black uppercase text-[#74777f] mb-1">Dosagem Nominal (ML/TON ou QTD BASE)</label>
-                    <input
-                      type="number"
-                      step="0.0001"
-                      required
-                      value={qtdPorUnidade}
-                      onChange={(e) => setQtdPorUnidade(e.target.value)}
-                      className="w-full bg-surface-container-low text-xs px-3 py-2 rounded-lg border border-transparent focus:border-secondary focus:bg-white outline-hidden"
-                    />
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {(() => {
+                    const selectedInsumo = insumos.find(i => i.id === selectedInsumoId);
+                    const isAco = selectedInsumo?.categoria === 'ACO';
+                    const isPolimero = selectedInsumo?.categoria === 'POLIMERO';
+                    
+                    return (
+                      <>
+                        <div className={isPolimero ? '' : 'md:col-span-2'}>
+                          <label className="block text-[9px] font-black uppercase text-[#74777f] mb-1">
+                            {isAco ? 'Dosagem (Hastes/Unid Inteira)' : 'Dosagem Nominal (Kg, ML ou QTD)'}
+                          </label>
+                          <input
+                            type="number"
+                            step={isAco ? "1" : "0.0001"}
+                            required
+                            value={qtdPorUnidade}
+                            onChange={(e) => setQtdPorUnidade(e.target.value)}
+                            placeholder={isAco ? "Apenas números inteiros" : ""}
+                            className="w-full bg-surface-container-low text-xs px-3 py-2 rounded-lg border border-transparent focus:border-secondary focus:bg-white outline-hidden"
+                          />
+                        </div>
 
-                  <div>
-                    <label className="block text-[9px] font-black uppercase text-[#74777f] mb-1">% no Blend Seco</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={pctBlend}
-                      onChange={(e) => setPctBlend(e.target.value)}
-                      placeholder="Ex: 30"
-                      className="w-full bg-surface-container-low text-xs px-3 py-2 rounded-lg border border-transparent focus:border-secondary focus:bg-white outline-hidden"
-                    />
-                  </div>
+                        {isPolimero && (
+                          <div>
+                            <label className="block text-[9px] font-black uppercase text-[#74777f] mb-1">% no Blend Seco</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              required
+                              value={pctBlend}
+                              onChange={(e) => setPctBlend(e.target.value)}
+                              placeholder="Ex: 30"
+                              className="w-full bg-surface-container-low text-xs px-3 py-2 rounded-lg border border-transparent focus:border-secondary focus:bg-white outline-hidden"
+                            />
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
 
                 <button
                   type="submit"
                   className="w-full bg-secondary text-white text-xs font-bold py-2 rounded-lg transition-all hover:bg-secondary/95 cursor-pointer"
                 >
-                  + Inserir na Fórmula
+                  + Inserir na Receita
                 </button>
               </form>
             </div>
@@ -295,7 +319,7 @@ export default function BOMScreen() {
         <div className="lg:col-span-2 bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-xs flex flex-col justify-between">
           <div>
             <h4 className="text-xs font-black text-primary uppercase tracking-wider mb-4 border-b pb-2 flex items-center justify-between">
-              <span>Fórmula Química Ativa: <strong className="text-secondary">{selectedFamilia?.nome || 'Nenhuma'}</strong></span>
+              <span>Receita Ativa: <strong className="text-secondary">{selectedFamilia?.nome || 'Nenhuma'}</strong></span>
               <span className="text-[10px] bg-surface-container text-outline px-2 py-0.5 rounded-sm">Ficha Técnica</span>
             </h4>
 
@@ -318,7 +342,7 @@ export default function BOMScreen() {
                           <td className="p-3 font-bold text-primary">{item.insumo?.nome}</td>
                           <td className="p-3 text-outline text-[10px]">{item.insumo?.categoria}</td>
                           <td className="p-3 text-center font-bold">
-                            {item.quantidade_por_unidade} <span className="font-semibold text-outline text-[10px]">{item.insumo?.unidade_medida}</span>
+                            {item.quantidade_por_unidade} <span className="font-semibold text-outline text-[10px]">{item.insumo?.categoria === 'ACO' ? 'Un (Hastes)' : item.insumo?.categoria === 'QUIMICO' ? 'ml/Ton' : item.insumo?.unidade_medida}</span>
                           </td>
                           <td className="p-3 text-center font-bold text-secondary">
                             {item.percentual_blend !== null ? `${item.percentual_blend}%` : '-'}
@@ -336,7 +360,7 @@ export default function BOMScreen() {
                       {bomItems.length === 0 && (
                         <tr>
                           <td colSpan={5} className="p-8 text-center text-outline font-semibold">
-                            Nenhum componente cadastrado nesta fórmula. Adicione os insumos à esquerda.
+                            Nenhum componente cadastrado nesta receita. Adicione os insumos à esquerda.
                           </td>
                         </tr>
                       )}
@@ -346,7 +370,7 @@ export default function BOMScreen() {
 
                 <div className="flex justify-between items-center pt-2">
                   <div className="text-[10px] text-outline leading-relaxed max-w-md">
-                    * Componentes do tipo **QUIMICO** com percentual (%) preenchido farão parte do OEE/MRP em base de mistura de 100%. Aditivos operacionais líquidos não contam na base seca.
+                    * Componentes do tipo **POLIMERO** com percentual (%) preenchido farão parte do OEE/MRP em base de mistura de 100%. Aditivos químicos e aço não contam na base seca.
                   </div>
                   
                   <button
@@ -354,7 +378,7 @@ export default function BOMScreen() {
                     disabled={actionLoading}
                     className="bg-secondary hover:brightness-95 text-white text-xs font-bold py-2.5 px-6 rounded-lg transition-all cursor-pointer"
                   >
-                    {actionLoading ? 'Gravando Receita...' : 'Salvar Fórmula (BOM)'}
+                    {actionLoading ? 'Gravando Receita...' : 'Salvar Receita (BOM)'}
                   </button>
                 </div>
               </div>
