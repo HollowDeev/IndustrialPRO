@@ -74,10 +74,12 @@ function parseDbCategories(categoriaVal: any): string[] {
 
 export default function EstoqueScreen({ 
   triggerAddNew = 0,
-  onGoToSupplier
+  onGoToSupplier,
+  tourDemoMode = false
 }: { 
   triggerAddNew?: number,
-  onGoToSupplier?: (id: string, name: string) => void
+  onGoToSupplier?: (id: string, name: string) => void,
+  tourDemoMode?: boolean
 }) {
   const { addToast } = useToast();
   const supabase = createClient();
@@ -166,6 +168,22 @@ export default function EstoqueScreen({
       setIsAddModalOpen(true);
     }
   }, [triggerAddNew]);
+
+  // Efeito para preencher dados de demonstração no Tour Interativo
+  useEffect(() => {
+    if (tourDemoMode) {
+      setIsAddModalOpen(true);
+      setQuantidade('2500');
+      setPrecoUnitario('8.90');
+      setDataPrevista(new Date().toISOString().substring(0, 10));
+      if (items.length > 0) {
+        setSelectedInsumoId(items[0].id);
+      }
+      if (fornecedores.length > 0) {
+        setSelectedFornecedorId(fornecedores[0].id);
+      }
+    }
+  }, [tourDemoMode, items, fornecedores]);
 
     const fetchData = async () => {
     try {

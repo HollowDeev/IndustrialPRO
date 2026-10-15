@@ -23,7 +23,7 @@ interface BOMItem {
   insumo?: Insumo
 }
 
-export default function BOMScreen() {
+export default function BOMScreen({ tourDemoMode = false }: { tourDemoMode?: boolean }) {
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
 
@@ -98,6 +98,41 @@ export default function BOMScreen() {
       setBomItems([])
     }
   }, [selectedFamiliaId])
+
+  // Efeito para preencher dados de demonstração no Tour Interativo
+  useEffect(() => {
+    if (tourDemoMode) {
+      if (familias.length > 0 && !selectedFamiliaId) {
+        setSelectedFamiliaId(familias[0].id);
+      }
+      setBomItems([
+        {
+          insumo_id: 'demo-pead',
+          quantidade_por_unidade: 0.85,
+          percentual_blend: 85,
+          insumo: { id: 'demo-pead', nome: 'PEAD Virgem 0.95 (Braskem)', categoria: 'POLIMERO', unidade_medida: 'Kg' }
+        },
+        {
+          insumo_id: 'demo-reticulavel',
+          quantidade_por_unidade: 0.12,
+          percentual_blend: 12,
+          insumo: { id: 'demo-reticulavel', nome: 'Composto Reticulável HD', categoria: 'POLIMERO', unidade_medida: 'Kg' }
+        },
+        {
+          insumo_id: 'demo-master',
+          quantidade_por_unidade: 0.03,
+          percentual_blend: 3,
+          insumo: { id: 'demo-master', nome: 'Masterbatch Preto Anti-UV', categoria: 'QUIMICO', unidade_medida: 'Kg' }
+        },
+        {
+          insumo_id: 'demo-aco',
+          quantidade_por_unidade: 1,
+          percentual_blend: null,
+          insumo: { id: 'demo-aco', nome: 'Fita de Aço Galvanizado 0.50mm', categoria: 'ACO', unidade_medida: 'Metro' }
+        }
+      ]);
+    }
+  }, [tourDemoMode, familias]);
 
   // Adicionar ingrediente na tabela temporária local
   const handleAddLocalItem = (e: React.FormEvent) => {
@@ -325,7 +360,7 @@ export default function BOMScreen() {
 
             {selectedFamiliaId ? (
               <div className="space-y-4">
-                <div className="overflow-hidden rounded-xl border border-outline-variant/60">
+                <div id="tour-bom-table" className="overflow-hidden rounded-xl border border-outline-variant/60">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="bg-surface-container-low font-bold text-[#74777f] uppercase text-[9px] tracking-wider border-b border-outline-variant">

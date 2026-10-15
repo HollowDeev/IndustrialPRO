@@ -87,6 +87,7 @@ export default function Home() {
   const [dbSKUs, setDbSKUs] = useState<{ id: string; codigo: string; comprimento_mm: number }[]>([]);
   const [preSelectedItems, setPreSelectedItems] = useState<SimulatedOrderItem[] | undefined>(undefined);
   const [calculatorInitialItems, setCalculatorInitialItems] = useState<SimulatedOrderItem[]>([]);
+  const [tourDemoMode, setTourDemoMode] = useState<boolean>(false);
   const tourRef = useRef<InteractiveTourHandle>(null);
 
   // Carregar dados principais do banco de dados (Supabase)
@@ -585,6 +586,7 @@ export default function Home() {
       case 'estoque':
         return <EstoqueScreen 
           triggerAddNew={triggerAddEstoque} 
+          tourDemoMode={tourDemoMode}
           onGoToSupplier={(id, name) => {
             setGlobalSearch(name);
             setCurrentScreen('fornecedores');
@@ -709,6 +711,7 @@ export default function Home() {
             isAddingNew={isAddingNewSupplier}
             setIsAddingNew={setIsAddingNewSupplier}
             externalSearchQuery={globalSearch}
+            tourDemoMode={tourDemoMode}
           />
         );
 
@@ -716,13 +719,13 @@ export default function Home() {
         return <Funcionarios triggerAddNew={triggerAddEmployee} />;
 
       case 'materias-primas':
-        return <MateriasPrimas suppliers={suppliers} triggerAddNew={triggerAddMaterial} />;
+        return <MateriasPrimas suppliers={suppliers} triggerAddNew={triggerAddMaterial} tourDemoMode={tourDemoMode} />;
 
       case 'familias-skus':
-        return <FamiliasSkusScreen triggerAddNew={triggerAddFamily} />;
+        return <FamiliasSkusScreen triggerAddNew={triggerAddFamily} tourDemoMode={tourDemoMode} />;
 
       case 'bom-formulas':
-        return <BOMScreen />;
+        return <BOMScreen tourDemoMode={tourDemoMode} />;
 
       case 'arquivos':
         return <ArquivosScreen />;
@@ -734,7 +737,7 @@ export default function Home() {
         return <ControleAcessos />;
 
       case 'clientes':
-        return <ClientesScreen onGerarPedido={handleGerarPedidoCliente} />;
+        return <ClientesScreen onGerarPedido={handleGerarPedidoCliente} tourDemoMode={tourDemoMode} />;
 
       case 'financeiro':
         return <FinanceiroScreen />;
@@ -760,6 +763,7 @@ export default function Home() {
         return (
           <FormacaoPrecoScreen
             initialItems={calculatorInitialItems}
+            tourDemoMode={tourDemoMode}
             onAbrirPedidoSimulado={async (items) => {
               const { count } = await supabase.from('pedidos').select('*', { count: 'exact', head: true });
               const nextCode = `PED-2026-${String((count || 0) + 1).padStart(3, '0')}`;
@@ -844,6 +848,7 @@ export default function Home() {
         initialCode={newOrderCode}
         preSelectedClientId={preSelectedClientId}
         preSelectedItems={preSelectedItems}
+        tourDemoMode={tourDemoMode}
       />
 
       {/* ================= TOUR INTERATIVO PARA AVALIADORES ================= */}
@@ -856,6 +861,8 @@ export default function Home() {
         setTriggerAddFamily={setTriggerAddFamily}
         setTriggerAddEstoque={setTriggerAddEstoque}
         setIsAddOrderModalOpen={setIsAddOrderModalOpen}
+        tourDemoMode={tourDemoMode}
+        setTourDemoMode={setTourDemoMode}
       />
     </div>
   );

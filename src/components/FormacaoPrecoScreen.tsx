@@ -20,6 +20,7 @@ interface FormacaoPrecoScreenProps {
   onAbrirPedidoSimulado: (items: SimulatedOrderItem[]) => void;
   onBack?: () => void;
   initialItems?: SimulatedOrderItem[];
+  tourDemoMode?: boolean;
 }
 
 export const calculatePreviewCustoBase = (
@@ -179,7 +180,12 @@ export const calculateSKUCustoBaseLocal = (
   return totalCusto;
 };
 
-export default function FormacaoPrecoScreen({ onAbrirPedidoSimulado, onBack, initialItems }: FormacaoPrecoScreenProps) {
+export default function FormacaoPrecoScreen({ 
+  onAbrirPedidoSimulado, 
+  onBack, 
+  initialItems, 
+  tourDemoMode = false 
+}: FormacaoPrecoScreenProps) {
   const supabase = createClient();
   const { addToast } = useToast();
   const { canAccess } = usePermissions();
@@ -355,6 +361,19 @@ export default function FormacaoPrecoScreen({ onAbrirPedidoSimulado, onBack, ini
   useEffect(() => {
     loadData();
   }, [selectedMonth]);
+
+  // Efeito para preencher dados de demonstração no Tour Interativo
+  useEffect(() => {
+    if (tourDemoMode) {
+      if (skus.length > 0 && !calcSkuId) {
+        setCalcSkuId(skus[0].id);
+      }
+      setSimulatedQty('2500');
+      setCalcMargem('25.00');
+      setCalcTributaria('18.00');
+      setCalcComissao('5.00');
+    }
+  }, [tourDemoMode, skus, calcSkuId]);
 
   const getSKUCustoBaseReal = (skuId: string) => {
     return calculateSKUCustoBaseLocal(skuId, skus, familias, boms, insumos);
@@ -783,7 +802,7 @@ export default function FormacaoPrecoScreen({ onAbrirPedidoSimulado, onBack, ini
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Lado Esquerdo: Simulador de SKU e Estoque */}
-        <div className="bg-white p-5 rounded-2xl border border-outline-variant shadow-xs lg:col-span-2 space-y-5 flex flex-col justify-between">
+        <div id="tour-pricing-simulator" className="bg-white p-5 rounded-2xl border border-outline-variant shadow-xs lg:col-span-2 space-y-5 flex flex-col justify-between">
           <div className="space-y-4">
             <div className="border-b pb-3">
               <h4 className="text-sm font-black text-[#002046] uppercase flex items-center gap-1.5">

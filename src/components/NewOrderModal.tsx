@@ -13,6 +13,7 @@ interface NewOrderModalProps {
   initialCode: string; // The suggested PED-XXXX-YYY code
   preSelectedClientId?: string;
   preSelectedItems?: SimulatedOrderItem[];
+  tourDemoMode?: boolean;
 }
 
 export default function NewOrderModal({ 
@@ -22,7 +23,8 @@ export default function NewOrderModal({
   empresaId, 
   initialCode, 
   preSelectedClientId,
-  preSelectedItems
+  preSelectedItems,
+  tourDemoMode = false
 }: NewOrderModalProps) {
   const supabase = createClient();
   const { addToast } = useToast();
@@ -123,16 +125,28 @@ export default function NewOrderModal({
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
-      setNewOrderCode(initialCode);
-      setNewOrderClient(preSelectedClientId || (dbClientes.length > 0 ? dbClientes[0].id : ''));
-      setNewOrderVendedor('');
-      setNewOrderLocation('');
-      setNewOrderDeliveryDate('');
-      setNewOrderCondicao('30_DIAS');
-      setNewOrderCustomReceiptDate('');
-      setValorFrete(0);
+      if (tourDemoMode) {
+        setNewOrderCode('PED-DEMO-2026');
+        setNewOrderClient(preSelectedClientId || (dbClientes.length > 0 ? dbClientes[0].id : ''));
+        setNewOrderVendedor(dbVendedores.length > 0 ? dbVendedores[0].id : '');
+        setNewOrderLocation('Fábrica 01 - Linha Principal (Extrusão)');
+        const d = new Date();
+        d.setDate(d.getDate() + 15);
+        setNewOrderDeliveryDate(d.toISOString().substring(0, 10));
+        setNewOrderCondicao('30_DIAS');
+        setValorFrete(350);
+      } else {
+        setNewOrderCode(initialCode);
+        setNewOrderClient(preSelectedClientId || (dbClientes.length > 0 ? dbClientes[0].id : ''));
+        setNewOrderVendedor('');
+        setNewOrderLocation('');
+        setNewOrderDeliveryDate('');
+        setNewOrderCondicao('30_DIAS');
+        setNewOrderCustomReceiptDate('');
+        setValorFrete(0);
+      }
     }
-  }, [isOpen, initialCode, preSelectedClientId, dbClientes]);
+  }, [isOpen, initialCode, preSelectedClientId, dbClientes, dbVendedores, tourDemoMode]);
 
   // Simular Fluxo de Caixa para Alerta de NCG
   const getCashFlowSimulation = () => {
@@ -208,17 +222,30 @@ export default function NewOrderModal({
 
   const showAlert = isReceiptBeforeDelivery && simulation.hasNegativeBalance;
 
+  const activeItems = (preSelectedItems && preSelectedItems.length > 0)
+    ? preSelectedItems
+    : (tourDemoMode ? [
+        {
+          skuId: 'demo-sku-1',
+          skuCodigo: 'TUBO-PEAD-32MM-3000',
+          quantidade: 5000,
+          precoVenda: 28.50,
+          comissaoPercentual: 3,
+          fixedCostAlocado: 2.10
+        }
+      ] : []);
+
   // Calculos Fiscais Dinâmicos
   const getFiscalTotals = () => {
     let totalIcms = 0;
     let totalIpi = 0;
     
-    if (!newOrderClient || !preSelectedItems) return { totalIcms, totalIpi };
+    if (!newOrderClient || activeItems.length === 0) return { totalIcms, totalIpi };
     
     const client = dbClientes.find(c => c.id === newOrderClient);
     if (!client) return { totalIcms, totalIpi };
 
-    preSelectedItems.forEach(item => {
+    activeItems.forEach(item => {
       const ncm = skuNcmMap[item.skuId] || '';
       // Procura regra exata ou coringa
       const regra = regrasFiscais.find(r => 
@@ -238,8 +265,8 @@ export default function NewOrderModal({
   };
 
   const { totalIcms, totalIpi } = getFiscalTotals();
-  const baseTotalValue = preSelectedItems?.reduce((sum, item) => sum + (item.quantidade * item.precoVenda), 0) || 0;
-  const finalTotalValue = baseTotalValue + valorFrete; // IPI e ICMS estão embutidos ou por fora? Normalmente IPI por fora, ICMS embutido. O user quer exibir apenas, deixaremos frete somar.
+  const baseTotalValue = activeItems.reduce((sum, item) => sum + (item.quantidade * item.precoVenda), 0);
+  const finalTotalValue = baseTotalValue + valorFrete;
 
   const handleCreateOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -346,7 +373,7 @@ export default function NewOrderModal({
                 <div className="bg-[#f4f3f9] p-4 rounded-2xl border border-outline-variant/60 space-y-3">
                   <h4 className="text-[9px] font-black text-secondary uppercase tracking-wider">Produtos do Lote</h4>
                   <div className="divide-y divide-outline-variant/30 max-h-[15vh] overflow-y-auto pr-1">
-                    {preSelectedItems?.map((item, idx) => (
+                    {activeItems.map((item, idx) => (
                       <div key={idx} className="py-1.5 flex justify-between text-xs font-semibold text-[#002046]">
                         <span className="font-mono">{item.skuCodigo}</span>
                         <span>{item.quantidade.toLocaleString('pt-BR')} un x {item.precoVenda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>

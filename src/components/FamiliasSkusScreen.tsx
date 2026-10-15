@@ -24,7 +24,13 @@ interface SKU {
   deleted_at?: string
 }
 
-export default function FamiliasSkusScreen({ triggerAddNew }: { triggerAddNew?: number }) {
+export default function FamiliasSkusScreen({ 
+  triggerAddNew,
+  tourDemoMode = false
+}: { 
+  triggerAddNew?: number;
+  tourDemoMode?: boolean;
+}) {
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
   
@@ -57,6 +63,19 @@ export default function FamiliasSkusScreen({ triggerAddNew }: { triggerAddNew?: 
   const [deleteEntityType, setDeleteEntityType] = useState<'FAMILIA' | 'SKU'>('FAMILIA')
   const [deleteEntityName, setDeleteEntityName] = useState('')
   const [deleteReason, setDeleteReason] = useState('')
+
+  // Efeito para preencher dados de demonstração no Tour Interativo
+  useEffect(() => {
+    if (tourDemoMode) {
+      setFamNome('Tubo Coextrusado PEAD 32mm');
+      setFamGeometria('Redondo');
+      setDim1('32');
+      setFamDensidade('0.95');
+      setSkuComprimento('3000');
+      setSkuDescontoAco('75');
+      setSkuPrecoBase('28.50');
+    }
+  }, [tourDemoMode]);
 
   useEffect(() => {
     if (famGeometria === 'Quadrado') {

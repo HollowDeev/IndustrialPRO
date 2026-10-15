@@ -10,6 +10,7 @@ interface FornecedoresProps {
   isAddingNew: boolean;
   setIsAddingNew: (val: boolean) => void;
   externalSearchQuery?: string;
+  tourDemoMode?: boolean;
 }
 
 export default function Fornecedores({
@@ -18,7 +19,8 @@ export default function Fornecedores({
   onUpdateSupplier,
   isAddingNew,
   setIsAddingNew,
-  externalSearchQuery = ''
+  externalSearchQuery = '',
+  tourDemoMode = false
 }: FornecedoresProps) {
   const { addToast } = useToast();
   const supabase = createClient();
@@ -76,6 +78,27 @@ export default function Fornecedores({
   const [possuiTanqueDecantacao, setPossuiTanqueDecantacao] = useState(false);
   const [possuiSecadora, setPossuiSecadora] = useState(false);
   const [possuiSoproSiloBag, setPossuiSoproSiloBag] = useState(false);
+
+  // Efeito para preencher dados de demonstração no Tour Interativo
+  useEffect(() => {
+    if (tourDemoMode) {
+      setIsAddingNew(true);
+      setNewName('Petroquímica Braskem Brasil S/A');
+      setNewCnpj('42.150.391/0001-85');
+      setNewIe('123.456.789.110');
+      setNewContact('Carlos Roberto da Silva (Gerência Comercial)');
+      setNewEmail('carlos.silva@braskem.com.br');
+      setNewAddress('Polo Petroquímico do Sul, Triunfo - RS');
+      setNewCategories(['POLIMERO', 'QUIMICO']);
+      setRating(95);
+      setPassaTriagem(true);
+      setLavagemASeco(true);
+      setPossuiLavadora(true);
+      setPossuiTanqueDecantacao(true);
+      setPossuiSecadora(true);
+      setPossuiSoproSiloBag(true);
+    }
+  }, [tourDemoMode, setIsAddingNew]);
 
   const formatCNPJ = (value: string) => {
     const v = value.replace(/\D/g, '').slice(0, 14);

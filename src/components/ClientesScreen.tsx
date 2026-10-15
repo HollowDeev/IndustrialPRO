@@ -6,9 +6,10 @@ import { Cliente } from '@/types';
 
 interface ClientesScreenProps {
   onGerarPedido?: (clienteId: string, clienteNome: string) => void;
+  tourDemoMode?: boolean;
 }
 
-export default function ClientesScreen({ onGerarPedido }: ClientesScreenProps) {
+export default function ClientesScreen({ onGerarPedido, tourDemoMode = false }: ClientesScreenProps) {
   const supabase = createClient();
   const { addToast } = useToast();
 
@@ -54,6 +55,23 @@ export default function ClientesScreen({ onGerarPedido }: ClientesScreenProps) {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Efeito para preencher dados de demonstração no Tour Interativo
+  useEffect(() => {
+    if (tourDemoMode) {
+      setEditingId(null);
+      setFormData({
+        razao_social: 'Indústria Metalúrgica Aliança Ltda',
+        cnpj: '18.423.901/0001-44',
+        telefone: '(11) 4591-2000',
+        endereco_entrega: 'Av. Industrial, 4500 - Galpão 3, Jundiaí - SP',
+        uf: 'SP',
+        tipo_cliente: 'REVENDA',
+        contribuinte_icms: true
+      });
+      setIsModalOpen(true);
+    }
+  }, [tourDemoMode]);
 
   const handleOpenModal = (c?: Cliente) => {
     if (c) {
@@ -220,7 +238,7 @@ export default function ClientesScreen({ onGerarPedido }: ClientesScreenProps) {
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="flex flex-col overflow-hidden h-full">
+            <form id="tour-form-cliente" onSubmit={handleSave} className="flex flex-col overflow-hidden h-full">
               <div className="p-6 flex-1 overflow-y-auto space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-outline uppercase mb-1">Razão Social *</label>

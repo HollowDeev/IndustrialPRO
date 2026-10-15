@@ -24,9 +24,10 @@ import { useToast } from '../contexts/ToastContext';
 interface MateriasPrimasProps {
   suppliers: Supplier[];
   triggerAddNew?: number;
+  tourDemoMode?: boolean;
 }
 
-export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPrimasProps) {
+export default function MateriasPrimas({ suppliers, triggerAddNew, tourDemoMode = false }: MateriasPrimasProps) {
   const { addToast } = useToast();
   const supabase = createClient();
 
@@ -111,6 +112,27 @@ export default function MateriasPrimas({ suppliers, triggerAddNew }: MateriasPri
       handleStartAddNew();
     }
   }, [triggerAddNew]);
+
+  // Efeito para preencher dados de demonstração no Tour Interativo
+  useEffect(() => {
+    if (tourDemoMode) {
+      setIsAddingNew(true);
+      setNewMat({
+        id: 'MAT-DEMO-01',
+        description: 'Polietileno de Alta Densidade (PEAD Virgem 0.95)',
+        category: 'POLIMERO',
+        purchaseUnit: 'Kg',
+        supplierId: suppliers.length > 0 ? suppliers[0].id : '',
+        lastPurchaseDate: new Date().toISOString().substring(0, 10),
+        lastPurchasePrice: 8.75,
+        lastPurchaseQty: 5000,
+        currentStock: 12000,
+        bitola_mm: null,
+        peso_nominal_kg_m: null,
+        supplierRankings: []
+      });
+    }
+  }, [tourDemoMode, suppliers]);
 
   // Set selected item to edit form
   const currentMaterial = materials.find(m => m.id === selectedMaterialId);
