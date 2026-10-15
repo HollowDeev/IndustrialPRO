@@ -184,151 +184,178 @@ export default function LoginPage() {
 
       {/* ================= MODAL DE APRESENTAÇÃO & CREDENCIAIS DE AVALIAÇÃO ================= */}
       {isDemoModalOpen && (
-        <div className="fixed inset-0 bg-black/65 backdrop-blur-xs flex items-center justify-center z-[9999999] p-4 animate-fade-in select-none">
-          <div className="bg-white max-w-xl w-full rounded-3xl shadow-2xl border border-outline-variant overflow-hidden flex flex-col animate-scale-up">
+        <div className="fixed inset-0 bg-black/65 backdrop-blur-xs flex items-center justify-center z-[9999999] p-4 sm:p-6 animate-fade-in select-none">
+          <div className="bg-white max-w-4xl w-full rounded-3xl shadow-2xl border border-outline-variant overflow-hidden flex flex-col animate-scale-up">
             
-            {/* Header com Identidade Visual */}
-            <div className="bg-[#002046] p-6 text-white flex justify-between items-start relative overflow-hidden">
+            {/* Header Panorâmico com Identidade Visual */}
+            <div className="bg-[#002046] px-6 py-5 text-white flex justify-between items-center relative overflow-hidden">
               <div className="flex items-center gap-3.5 relative z-10">
-                <div className="w-12 h-12 rounded-2xl bg-secondary flex items-center justify-center text-white shadow-lg shrink-0">
-                  <span className="material-symbols-outlined notranslate text-[28px]">verified_user</span>
+                <div className="w-11 h-11 rounded-2xl bg-secondary flex items-center justify-center text-white shadow-lg shrink-0">
+                  <span className="material-symbols-outlined notranslate text-[26px]">verified_user</span>
                 </div>
                 <div>
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[10px] font-black uppercase tracking-wider bg-white/15 px-2 py-0.5 rounded-md text-white">
-                      Ambiente de Avaliação
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-white/15 px-2.5 py-0.5 rounded-md text-white">
+                      Ambiente de Avaliação Técnica
                     </span>
                     <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                       Servidor Seguro Ativo
                     </span>
                   </div>
-                  <h3 className="text-lg font-black tracking-tight text-white">Demonstrativo Técnico & Portfólio</h3>
-                  <p className="text-xs text-white/80">Kore Industrial • ERP & MRP Fabril</p>
+                  <h3 className="text-lg font-black tracking-tight text-white">Centro de Apresentação & Portfólio</h3>
                 </div>
               </div>
 
               <button
                 type="button"
                 onClick={() => setIsDemoModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer relative z-10"
+                className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer relative z-10"
                 title="Fechar modal"
               >
                 <span className="material-symbols-outlined notranslate text-[20px]">close</span>
               </button>
             </div>
 
-            {/* Conteúdo do Modal */}
-            <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto bg-surface-container-low">
+            {/* Conteúdo Disperso em 2 Colunas */}
+            <div className="p-6 sm:p-7 space-y-5 max-h-[80vh] overflow-y-auto bg-surface-container-low">
               
-              {/* Mensagem de Boas-Vindas */}
-              <div className="bg-white p-4 rounded-2xl border border-outline-variant/70 shadow-xs text-xs text-[#334155] leading-relaxed space-y-2">
-                <p className="font-semibold text-primary text-sm flex items-center gap-1.5">
-                  <span>👋</span>
-                  <span>Olá! Fico feliz que tenha vindo analisar o meu projeto!</span>
-                </p>
-                <p>
-                  Esse é um <strong>ambiente de teste seguro</strong>, hospedado em um servidor dedicado com um banco de dados de teste (Supabase PostgreSQL), estruturado para apresentar a arquitetura, regras de negócio fabril e fluxo de engenharia de ponta a ponta.
-                </p>
-                <p className="text-[#64748b] text-[11px]">
-                  Utilize as credenciais abaixo para ter acesso a um <strong>demonstrativo completo do sistema</strong>, incluindo o tour guiado e formulários com dados técnicos.
-                </p>
-              </div>
-
-              {/* Card de Credenciais com Botões de Copiar */}
-              <div className="bg-white p-4 rounded-2xl border border-secondary/30 shadow-xs space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase text-secondary tracking-wider flex items-center gap-1">
-                    <span className="material-symbols-outlined notranslate text-[14px]">key</span>
-                    Dados de Acesso para Teste
-                  </span>
-                  <span className="text-[10px] font-bold text-outline">Perfil: Gestor Operacional / Admin</span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                  {/* Campo E-mail */}
-                  <div className="bg-[#f8fafc] border border-outline-variant/60 rounded-xl p-3 flex flex-col justify-between">
-                    <span className="text-[10px] font-bold text-[#64748b] uppercase">E-mail:</span>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="font-mono font-bold text-[#002046] text-[11px] truncate mr-2">
-                        {DEMO_EMAIL}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(DEMO_EMAIL, 'email')}
-                        className="px-2 py-1 rounded-md bg-white border border-outline-variant hover:border-secondary text-[10px] font-bold text-primary transition-all cursor-pointer flex items-center gap-1 shrink-0"
-                      >
-                        <span className="material-symbols-outlined notranslate text-[12px]">
-                          {copiedEmail ? 'check' : 'content_copy'}
-                        </span>
-                        {copiedEmail ? 'Copiado!' : 'Copiar'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Campo Senha */}
-                  <div className="bg-[#f8fafc] border border-outline-variant/60 rounded-xl p-3 flex flex-col justify-between">
-                    <span className="text-[10px] font-bold text-[#64748b] uppercase">Senha:</span>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="font-mono font-bold text-[#002046] text-[11px] truncate mr-2">
-                        {DEMO_PASSWORD}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(DEMO_PASSWORD, 'password')}
-                        className="px-2 py-1 rounded-md bg-white border border-outline-variant hover:border-secondary text-[10px] font-bold text-primary transition-all cursor-pointer flex items-center gap-1 shrink-0"
-                      >
-                        <span className="material-symbols-outlined notranslate text-[12px]">
-                          {copiedPassword ? 'check' : 'content_copy'}
-                        </span>
-                        {copiedPassword ? 'Copiado!' : 'Copiar'}
-                      </button>
-                    </div>
+              {/* Mensagem de Boas-Vindas Ampla */}
+              <div className="bg-white p-5 rounded-2xl border border-outline-variant/70 shadow-xs text-xs text-[#334155] leading-relaxed">
+                <div className="flex items-start gap-3">
+                  <div className="text-2xl shrink-0">👋</div>
+                  <div className="space-y-1.5">
+                    <h4 className="font-bold text-primary text-sm sm:text-base">
+                      Olá, fico muito feliz que tenha vindo analisar um dos meus projetos mais recentes e completos!
+                    </h4>
+                    <p className="text-xs sm:text-[13px] text-outline leading-relaxed">
+                      Esse é um <strong>ambiente de teste seguro</strong>, em um servidor dedicado na nuvem e com um banco de dados de teste (Supabase PostgreSQL), projetado para demonstrar toda a robustez de engenharia, regras fabris avançadas (MRP I, cálculo geométrico paramétrico de perfis e esteira FIFO) e formação de preço em tempo real.
+                    </p>
                   </div>
                 </div>
-
-                {/* Botão de Preenchimento Automático com 1 Clique */}
-                <button
-                  type="button"
-                  onClick={handleAutoFill}
-                  className="w-full bg-secondary hover:bg-secondary/90 text-white font-bold py-3 rounded-xl transition-all cursor-pointer text-xs uppercase tracking-wider shadow-sm flex items-center justify-center gap-2 group"
-                >
-                  <span className="material-symbols-outlined notranslate text-[18px] group-hover:scale-110 transition-transform">
-                    bolt
-                  </span>
-                  <span>Preencher Credenciais Automaticamente</span>
-                </button>
               </div>
 
-              {/* Card de Aviso Legal / Proibição de Pentest */}
-              <div className="bg-red-50/80 border border-red-200/90 rounded-2xl p-4 text-xs space-y-2">
-                <div className="flex items-center gap-2 text-red-800 font-bold">
-                  <span className="material-symbols-outlined notranslate text-[18px] text-red-600">
-                    gpp_bad
-                  </span>
-                  <span className="text-xs uppercase tracking-wide">Aviso Legal & Restrições de Segurança</span>
-                </div>
+              {/* Grid 2 Colunas: Credenciais à Esquerda | Aviso Legal à Direita */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
                 
-                <p className="text-[11px] text-red-950/90 leading-relaxed">
-                  Testes de invasão (<strong>pentest</strong>), varreduras ativas de portas/vulnerabilidades, ataques de força bruta, injeção de scripts maliciosos ou tentativas de engenharia reversa <strong>NÃO estão autorizados</strong> e são estritamente proibidos neste ambiente.
-                </p>
+                {/* Coluna 1: Dados de Acesso (5 colunas) */}
+                <div className="lg:col-span-6 bg-white p-5 rounded-2xl border border-secondary/30 shadow-xs flex flex-col justify-between space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-3 border-b border-outline-variant/40 pb-2">
+                      <span className="text-[11px] font-black uppercase text-secondary tracking-wider flex items-center gap-1.5">
+                        <span className="material-symbols-outlined notranslate text-[16px]">key</span>
+                        Credenciais de Demonstração
+                      </span>
+                      <span className="text-[10px] font-bold text-outline bg-surface-container px-2 py-0.5 rounded-md">
+                        Acesso Completo
+                      </span>
+                    </div>
 
-                <div className="bg-white/70 border border-red-200 rounded-lg p-2.5 text-[10px] text-red-900 leading-relaxed font-mono">
-                  ⚖️ A violação não autorizada configura crime cibernético nos termos da <strong>Lei Federal nº 12.737/2012</strong> (Art. 154-A do Código Penal Brasileiro - Invasão de Dispositivo Informático) e descumprimento da <strong>Lei nº 13.709/2018 (LGPD)</strong>. Todo o tráfego de requisições e acessos à API são monitorados, auditados e armazenados com registro de data, IP e assinatura de cabeçalho.
+                    <p className="text-xs text-[#64748b] mb-4">
+                      Utilize os dados abaixo para ingressar diretamente no sistema com o perfil de Gestor:
+                    </p>
+
+                    <div className="space-y-2.5">
+                      {/* Campo E-mail */}
+                      <div className="bg-[#f8fafc] border border-outline-variant/70 rounded-xl p-3 flex items-center justify-between">
+                        <div className="min-w-0 pr-2">
+                          <span className="block text-[9px] font-bold text-[#64748b] uppercase">E-mail de Teste:</span>
+                          <span className="font-mono font-bold text-[#002046] text-xs truncate block select-all">
+                            {DEMO_EMAIL}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(DEMO_EMAIL, 'email')}
+                          className="px-2.5 py-1.5 rounded-lg bg-white border border-outline-variant hover:border-secondary text-[11px] font-bold text-primary transition-all cursor-pointer flex items-center gap-1 shrink-0 shadow-2xs"
+                        >
+                          <span className="material-symbols-outlined notranslate text-[13px]">
+                            {copiedEmail ? 'check' : 'content_copy'}
+                          </span>
+                          {copiedEmail ? 'Copiado!' : 'Copiar'}
+                        </button>
+                      </div>
+
+                      {/* Campo Senha */}
+                      <div className="bg-[#f8fafc] border border-outline-variant/70 rounded-xl p-3 flex items-center justify-between">
+                        <div className="min-w-0 pr-2">
+                          <span className="block text-[9px] font-bold text-[#64748b] uppercase">Senha de Acesso:</span>
+                          <span className="font-mono font-bold text-[#002046] text-xs truncate block select-all">
+                            {DEMO_PASSWORD}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(DEMO_PASSWORD, 'password')}
+                          className="px-2.5 py-1.5 rounded-lg bg-white border border-outline-variant hover:border-secondary text-[11px] font-bold text-primary transition-all cursor-pointer flex items-center gap-1 shrink-0 shadow-2xs"
+                        >
+                          <span className="material-symbols-outlined notranslate text-[13px]">
+                            {copiedPassword ? 'check' : 'content_copy'}
+                          </span>
+                          {copiedPassword ? 'Copiado!' : 'Copiar'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Botão de Ação Rápida */}
+                  <button
+                    type="button"
+                    onClick={handleAutoFill}
+                    className="w-full bg-secondary hover:bg-secondary/90 text-white font-bold py-3.5 rounded-xl transition-all cursor-pointer text-xs uppercase tracking-wider shadow-sm flex items-center justify-center gap-2 group active:scale-[0.99]"
+                  >
+                    <span className="material-symbols-outlined notranslate text-[18px] group-hover:scale-110 transition-transform">
+                      bolt
+                    </span>
+                    <span>Preencher e Acessar Automaticamente</span>
+                  </button>
                 </div>
+
+                {/* Coluna 2: Aviso Legal & Proibição de Pentest (6 colunas) */}
+                <div className="lg:col-span-6 bg-red-50/70 border border-red-200/90 rounded-2xl p-5 flex flex-col justify-between space-y-3">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-red-800 font-bold border-b border-red-200/80 pb-2">
+                      <span className="material-symbols-outlined notranslate text-[20px] text-red-600">
+                        gpp_bad
+                      </span>
+                      <span className="text-xs uppercase tracking-wide">Aviso Legal & Restrições de Segurança</span>
+                    </div>
+                    
+                    <p className="text-xs text-red-950/90 leading-relaxed">
+                      Testes de intrusão (<strong>pentest</strong>), varreduras automatizadas de portas/vulnerabilidades, ataques de força bruta, injeção de scripts maliciosos ou tentativas de engenharia reversa <strong>NÃO estão autorizados</strong> e são expressamente proibidos neste ambiente.
+                    </p>
+
+                    <div className="bg-white/80 border border-red-200/80 rounded-xl p-3 text-[11px] text-red-900 leading-relaxed space-y-1.5">
+                      <p className="font-semibold text-red-800 flex items-center gap-1">
+                        <span>⚖️</span>
+                        <span>Legislação Aplicável:</span>
+                      </p>
+                      <p>
+                        A execução de testes ofensivos não autorizados configura infração penal segundo a <strong>Lei Federal nº 12.737/2012</strong> (Art. 154-A do Código Penal Brasileiro - Invasão de Dispositivo Informático) e violação da <strong>Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018)</strong>.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-red-200/60 flex items-center gap-2 text-[10px] text-red-800/80 font-mono">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                    <span>Tráfego, IPs e requisições à API monitorados por logs de auditoria contínua.</span>
+                  </div>
+                </div>
+
               </div>
 
             </div>
 
             {/* Footer */}
-            <div className="p-4 bg-white border-t border-outline-variant/40 flex items-center justify-between">
-              <span className="text-[11px] text-outline font-semibold">
-                🔒 Ambiente restrito para análise de engenharia de software.
+            <div className="px-6 py-4 bg-white border-t border-outline-variant/40 flex items-center justify-between">
+              <span className="text-[11px] text-outline font-semibold flex items-center gap-1.5">
+                <span className="material-symbols-outlined notranslate text-[14px]">lock</span>
+                Ambiente de demonstração protegido e monitorado.
               </span>
               <button
                 type="button"
                 onClick={handleAutoFill}
-                className="text-xs font-bold text-secondary hover:text-primary transition-colors cursor-pointer px-3 py-1.5 flex items-center gap-1"
+                className="text-xs font-bold text-secondary hover:text-primary transition-colors cursor-pointer px-4 py-2 rounded-lg hover:bg-secondary/10 flex items-center gap-1.5"
               >
                 <span>Acessar Demonstração</span>
                 <span className="material-symbols-outlined notranslate text-[16px]">arrow_forward</span>
